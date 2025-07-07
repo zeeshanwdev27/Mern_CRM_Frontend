@@ -30,6 +30,8 @@ import ClientPreview from "./pages/Clients/ClientPreview.jsx"
 import NewProject from './pages/Projects/NewProject.jsx';
 import EditProject from './pages/Projects/EditProject.jsx';
 
+import AddTask from './pages/Tasks/AddTask.jsx';
+
 
 const ProtectedLayout = ({ children }) => (
   <ProtectedRoute>
@@ -63,6 +65,7 @@ function App() {
         <Route path="/projects" element={<ProtectedLayout><AllProjects /></ProtectedLayout>} />
         <Route path="/projects/newproject" element={<ProtectedLayout><NewProject /></ProtectedLayout>} />
         <Route path="/projects/editproject/:id" element={<ProtectedLayout><EditProject /></ProtectedLayout>} />
+        <Route path="/tasks/add" element={<ProtectedLayout><AddTask /></ProtectedLayout>} />
 
 
 

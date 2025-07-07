@@ -17,8 +17,11 @@ import {
   FiFlag,
   FiCalendar,
   FiMoreVertical,
-  FiPaperclip
+  FiPaperclip,
+  FiCheck,
+  FiX
 } from 'react-icons/fi';
+import axios from 'axios';
 
 // Status configuration
 const statusOptions = [
@@ -74,57 +77,6 @@ const priorityOptions = [
   }
 ];
 
-// Updated dummy data to match schema
-const dummyTasks = [
-  { 
-    _id: '1', 
-    title: 'Implement user authentication', 
-    description: 'Create login and registration pages with JWT support',
-    status: 'In Progress',
-    priority: 'High',
-    startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    assignees: ['1', '2'], // Array of client IDs
-    tags: ['Auth', 'Security'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  { 
-    _id: '2', 
-    title: 'Design dashboard UI', 
-    description: 'Create mockups for the admin dashboard',
-    status: 'Completed',
-    priority: 'Medium',
-    startDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    dueDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    assignees: ['2'],
-    tags: ['UI/UX'],
-    createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  { 
-    _id: '3', 
-    title: 'API documentation', 
-    description: 'Document all endpoints for the REST API with examples',
-    status: 'Not Started',
-    priority: 'Low',
-    startDate: new Date().toISOString(),
-    dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    assignees: ['4'],
-    tags: ['Documentation'],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
-
-const dummyClients = [
-  { _id: '1', name: 'John Doe', avatar: 'JD', role: 'Developer' },
-  { _id: '2', name: 'Sarah Smith', avatar: 'SS', role: 'Designer' },
-  { _id: '3', name: 'Mike Johnson', avatar: 'MJ', role: 'QA Engineer' },
-  { _id: '4', name: 'Emma Wilson', avatar: 'EW', role: 'Project Manager' }
-];
-
-// Updated StatusBadge component (no changes needed)
 const StatusBadge = ({ status }) => {
   const statusConfig = statusOptions.find(opt => opt.value === status) || statusOptions[0];
   
@@ -136,7 +88,6 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-// Updated PriorityBadge component (no changes needed)
 const PriorityBadge = ({ priority }) => {
   const priorityConfig = priorityOptions.find(opt => opt.value === priority) || priorityOptions[0];
   
@@ -148,7 +99,6 @@ const PriorityBadge = ({ priority }) => {
   );
 };
 
-// Updated DueDateBadge to include start date
 const DateBadge = ({ date, label, isOverdue = false }) => {
   const formattedDate = new Date(date).toLocaleDateString('en-US', { 
     month: 'short', 
@@ -167,8 +117,7 @@ const DateBadge = ({ date, label, isOverdue = false }) => {
   );
 };
 
-// Updated AssigneeDropdown to handle multiple assignees
-const AssigneeDropdown = ({ assignees, clients, isOpen, onOpenChange, onAssign, onUnassign }) => {
+const AssigneeDropdown = ({ assignees, isOpen, onOpenChange, onAssign, onUnassign }) => {
   return (
     <div className="relative">
       <button 
@@ -179,18 +128,15 @@ const AssigneeDropdown = ({ assignees, clients, isOpen, onOpenChange, onAssign, 
       >
         {assignees.length > 0 ? (
           <div className="flex items-center">
-            {assignees.slice(0, 2).map((assigneeId, index) => {
-              const client = clients.find(c => c._id === assigneeId);
-              return (
-                <div 
-                  key={assigneeId} 
-                  className={`w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center text-sm font-medium shadow-sm ${index > 0 ? '-ml-2' : ''}`}
-                  style={{ zIndex: assignees.length - index }}
-                >
-                  {client?.avatar || '?'}
-                </div>
-              );
-            })}
+            {assignees.slice(0, 2).map((assignee, index) => (
+              <div 
+                key={assignee._id} 
+                className={`w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center text-sm font-medium shadow-sm ${index > 0 ? '-ml-2' : ''}`}
+                style={{ zIndex: assignees.length - index }}
+              >
+                {assignee.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+              </div>
+            ))}
             {assignees.length > 2 && (
               <div className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-medium shadow-sm -ml-2">
                 +{assignees.length - 2}
@@ -221,31 +167,21 @@ const AssigneeDropdown = ({ assignees, clients, isOpen, onOpenChange, onAssign, 
                 Assign to
               </div>
               <div className="max-h-60 overflow-y-auto">
-                {clients.map(client => (
+                {assignees.map(assignee => (
                   <button
-                    key={client._id}
-                    onClick={() => {
-                      if (assignees.includes(client._id)) {
-                        onUnassign(client._id);
-                      } else {
-                        onAssign(client._id);
-                      }
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg cursor-pointer text-left transition-colors ${
-                      assignees.includes(client._id) ? 'bg-blue-50' : ''
-                    }`}
-                    aria-label={`Assign ${client.name}`}
+                    key={assignee._id}
+                    onClick={() => onUnassign(assignee._id)}
+                    className="w-full flex items-center gap-3 px-3 py-2 bg-blue-50 rounded-lg cursor-pointer text-left transition-colors"
+                    aria-label={`Unassign ${assignee.name}`}
                   >
                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white flex items-center justify-center text-sm font-medium shadow-sm">
-                      {client.avatar}
+                      {assignee.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{client.name}</div>
-                      <div className="text-xs text-gray-500">{client.role}</div>
+                      <div className="text-sm font-medium text-gray-900">{assignee.name}</div>
+                      <div className="text-xs text-gray-500">{assignee.role || 'Team Member'}</div>
                     </div>
-                    {assignees.includes(client._id) && (
-                      <FiCheck className="ml-auto text-blue-600" size={14} />
-                    )}
+                    <FiCheck className="ml-auto text-blue-600" size={14} />
                   </button>
                 ))}
               </div>
@@ -257,15 +193,77 @@ const AssigneeDropdown = ({ assignees, clients, isOpen, onOpenChange, onAssign, 
   );
 };
 
-// Updated TaskActionsMenu (no changes needed)
 const TaskActionsMenu = ({ isOpen, onOpenChange, task, onEdit, onDelete, onStatusChange }) => {
-  // ... (keep existing implementation)
+  return (
+    <div className="relative">
+      <button 
+        onClick={() => onOpenChange(!isOpen)}
+        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+        aria-label="Task actions"
+      >
+        <FiMoreVertical size={18} className="text-gray-500" />
+      </button>
+      
+<AnimatePresence>
+  {isOpen && (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ type: "spring", damping: 20, stiffness: 300 }}
+      className="absolute z-20 right-0 top-8 w-48 max-h-48 bg-white rounded-lg shadow-xl border border-gray-200 overflow-y-auto"
+    >
+      <div className="py-1">
+        <button
+          onClick={() => {
+            onEdit(task);
+            onOpenChange(false);
+          }}
+          className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700"
+        >
+          <FiEdit2 size={14} />
+          <span>Edit</span>
+        </button>
+        <div className="border-t border-gray-100">
+          {statusOptions.map(status => (
+            <button
+              key={status.value}
+              onClick={() => {
+                onStatusChange(task._id, status.value);
+                onOpenChange(false);
+              }}
+              className={`w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-left ${
+                task.status === status.value ? 'font-medium' : 'text-gray-700'
+              }`}
+            >
+              {React.cloneElement(status.icon, { size: 14 })}
+              <span>Mark as {status.value}</span>
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-gray-100">
+          <button
+            onClick={() => {
+              onDelete(task);
+              onOpenChange(false);
+            }}
+            className="w-full flex items-center gap-2 px-4 py-2 hover:bg-red-50 text-red-600"
+          >
+            <FiTrash2 size={14} />
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
+    </div>
+  );
 };
 
-// Updated TaskCard to match schema
 const TaskCard = ({ 
   task, 
-  clients, 
   onStatusChange,
   onAssign,
   onUnassign,
@@ -325,30 +323,27 @@ const TaskCard = ({
         </div>
         
         {/* Footer */}
-<div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
-  <div className="flex items-center gap-2">
-    <StatusBadge status={task.status} />
-    <PriorityBadge priority={task.priority} />
-  </div>
-  
-  <AssigneeDropdown 
-    assignees={task.assignees} 
-    clients={clients}
-    isOpen={isAssigneeOpen}
-    onOpenChange={setIsAssigneeOpen}
-    onAssign={(clientId) => onAssign(task._id, clientId)}
-    onUnassign={(clientId) => onUnassign(task._id, clientId)}
-  />
-</div>
+        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <StatusBadge status={task.status} />
+            <PriorityBadge priority={task.priority} />
+          </div>
+          
+          <AssigneeDropdown 
+            assignees={task.assignees} 
+            isOpen={isAssigneeOpen}
+            onOpenChange={setIsAssigneeOpen}
+            onAssign={(clientId) => onAssign(task._id, clientId)}
+            onUnassign={(clientId) => onUnassign(task._id, clientId)}
+          />
+        </div>
       </div>
     </motion.div>
   );
 };
 
-// Updated Tasks component
 const Tasks = () => {
   const [tasks, setTasks] = useState([]);
-  const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -365,12 +360,19 @@ const Tasks = () => {
       setError(null);
       
       try {
-        // In a real app, you would fetch from your API
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setTasks(dummyTasks);
-        setClients(dummyClients);
+        const token = localStorage.getItem("token");
+        if (!token) throw new Error("No authentication token found");
+
+        // Fetch tasks with populated assignees
+        const response = await axios.get("http://localhost:3000/api/tasks", {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          }
+        });
+
+        setTasks(response.data);
       } catch (err) {
-        setError("Failed to load tasks. Please try again later.");
+        setError(err.response?.data?.message || err.message || "Failed to load tasks");
         console.error("Error loading tasks:", err);
       } finally {
         setIsLoading(false);
@@ -384,10 +386,9 @@ const Tasks = () => {
     const matchesSearch = 
       task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.assignees.some(assigneeId => {
-        const client = clients.find(c => c._id === assigneeId);
-        return client?.name.toLowerCase().includes(searchTerm.toLowerCase());
-      });
+      task.assignees.some(assignee => 
+        assignee.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     
     const matchesFilter = 
       activeFilter === 'All' || 
@@ -403,26 +404,87 @@ const Tasks = () => {
   const currentTasks = filteredTasks.slice(indexOfFirstTask, indexOfLastTask);
   const totalPages = Math.ceil(filteredTasks.length / tasksPerPage);
 
-  const handleAssignTask = (taskId, clientId) => {
-    setTasks(prevTasks => prevTasks.map(task => 
-      task._id === taskId 
-        ? { ...task, assignees: [...task.assignees, clientId] } 
-        : task
-    ));
+  const handleAssignTask = async (taskId, clientId) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.patch(`http://localhost:3000/api/tasks/${taskId}/assign`, 
+        { userId: clientId },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      
+      setTasks(prevTasks => prevTasks.map(task => 
+        task._id === taskId 
+          ? { 
+              ...task, 
+              assignees: [
+                ...task.assignees, 
+                { 
+                  _id: clientId, 
+                  name: "New Assignee", // This should be updated with actual user data
+                  role: "Team Member" 
+                }
+              ] 
+            } 
+          : task
+      ));
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to assign user");
+      console.error("Error assigning user:", err);
+    }
   };
 
-  const handleUnassignTask = (taskId, clientId) => {
-    setTasks(prevTasks => prevTasks.map(task => 
-      task._id === taskId 
-        ? { ...task, assignees: task.assignees.filter(id => id !== clientId) } 
-        : task
-    ));
+  const handleUnassignTask = async (taskId, clientId) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.patch(`http://localhost:3000/api/tasks/${taskId}/unassign`, 
+        { userId: clientId },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      
+      setTasks(prevTasks => prevTasks.map(task => 
+        task._id === taskId 
+          ? { 
+              ...task, 
+              assignees: task.assignees.filter(assignee => assignee._id !== clientId) 
+            } 
+          : task
+      ));
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to unassign user");
+      console.error("Error unassigning user:", err);
+    }
   };
 
-  const handleStatusChange = (taskId, newStatus) => {
-    setTasks(prevTasks => prevTasks.map(task => 
-      task._id === taskId ? { ...task, status: newStatus } : task
-    ));
+  const handleStatusChange = async (taskId, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.patch(`http://localhost:3000/api/tasks/${taskId}/status`, 
+        { status: newStatus },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      
+      setTasks(prevTasks => prevTasks.map(task => 
+        task._id === taskId ? { ...task, status: newStatus } : task
+      ));
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update status");
+      console.error("Error updating status:", err);
+    }
   };
 
   const handleDeleteTask = (task) => {
@@ -430,13 +492,29 @@ const Tasks = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    setTasks(prevTasks => prevTasks.filter(task => task._id !== selectedTask._id));
-    setIsDeleteModalOpen(false);
+  const confirmDelete = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:3000/api/tasks/${selectedTask._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      console.log(selectedTask._id);
+      
+      
+      setTasks(prevTasks => prevTasks.filter(task => task._id !== selectedTask._id));
+      setIsDeleteModalOpen(false);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to delete task");
+      console.error("Error deleting task:", err);
+    }
   };
 
   const handleEditTask = (task) => {
     console.log("Editing task:", task);
+    // You would typically navigate to an edit page here
+    // navigate(`/tasks/edit/${task._id}`);
   };
 
   return (
@@ -546,7 +624,6 @@ const Tasks = () => {
                 <TaskCard
                   key={task._id}
                   task={task}
-                  clients={clients}
                   onStatusChange={handleStatusChange}
                   onAssign={handleAssignTask}
                   onUnassign={handleUnassignTask}
