@@ -66,19 +66,40 @@ const AllMembers = () => {
     fetchMembers();
   }, []);
 
-  // Get unique roles for filter dropdown
-  const roles = ['All', ...new Set(members.map(member => member.role?.name || 'No role'))];
+
+  // const roles = ['All', ...new Set(members.map(member => member.role?.name || 'No role'))];
+
+  //Exclude Administrator
+  const roles = ['All', ...new Set(            
+  members
+    .map(member => member.role?.name)
+    .filter(role => role && role !== 'Administrator')
+)];
+
   const statuses = ['All', 'Active', 'Inactive', 'On Leave'];
 
   // Filter and sort members based on user selections
+
+  // const filteredMembers = members
+  //   .filter(member => {
+  //     const matchesSearch = member.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //                        member.email?.toLowerCase().includes(searchTerm.toLowerCase());
+  //     const matchesRole = filterRole === 'All' || member.role?.name === filterRole;
+  //     const matchesStatus = filterStatus === 'All' || member.status === filterStatus;
+  //     return matchesSearch && matchesRole && matchesStatus;
+  //   })
+
+  //Exclude Administrator
   const filteredMembers = members
-    .filter(member => {
-      const matchesSearch = member.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.email?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesRole = filterRole === 'All' || member.role?.name === filterRole;
-      const matchesStatus = filterStatus === 'All' || member.status === filterStatus;
-      return matchesSearch && matchesRole && matchesStatus;
-    })
+  .filter(member => {
+    const isNotAdministrator = member.role?.name !== 'Administrator';
+    const matchesSearch = member.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          member.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = filterRole === 'All' || member.role?.name === filterRole;
+    const matchesStatus = filterStatus === 'All' || member.status === filterStatus;
+
+    return isNotAdministrator && matchesSearch && matchesRole && matchesStatus;
+  })
     .sort((a, b) => {
       if (sortConfig.key === 'role') {
         const aRole = a.role?.name || '';

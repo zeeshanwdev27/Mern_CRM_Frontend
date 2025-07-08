@@ -75,7 +75,11 @@ const AddTask = () => {
           role: user.role?.name || 'Team Member'
         }));
 
-        setUsers(formattedUsers);
+        // Filter out "Administrator"
+        const filteredUsers = formattedUsers.filter(user => user.role !== "Administrator");
+
+
+        setUsers(filteredUsers);
         setLoading(false);
       } catch (err) {
         setError(err.response?.data?.message || err.message || "Failed to load users");
