@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FiPlus,
   FiDownload,
@@ -17,57 +17,13 @@ import {
   FiCalendar,
   FiTrash2
 } from 'react-icons/fi';
+import axios from 'axios';
 
 const Invoices = () => {
-  const [invoices, setInvoices] = useState([
-    {
-      id: 'INV-2023-001',
-      client: 'Acme Corporation',
-      amount: 2450.00,
-      date: '2023-06-15',
-      dueDate: '2023-07-15',
-      status: 'Paid',
-      items: [
-        { description: 'Website Redesign', quantity: 1, price: 1500.00 },
-        { description: 'SEO Optimization', quantity: 1, price: 950.00 }
-      ]
-    },
-    {
-      id: 'INV-2023-002',
-      client: 'Beta Solutions',
-      amount: 1800.50,
-      date: '2023-06-20',
-      dueDate: '2023-07-20',
-      status: 'Pending',
-      items: [
-        { description: 'Mobile App Development', quantity: 1, price: 1800.50 }
-      ]
-    },
-    {
-      id: 'INV-2023-003',
-      client: 'Gamma Industries',
-      amount: 3200.75,
-      date: '2023-06-25',
-      dueDate: '2023-07-25',
-      status: 'Overdue',
-      items: [
-        { description: 'UI/UX Design', quantity: 1, price: 1200.00 },
-        { description: 'Backend Development', quantity: 1, price: 2000.75 }
-      ]
-    },
-    {
-      id: 'INV-2023-004',
-      client: 'Delta Technologies',
-      amount: 875.00,
-      date: '2023-07-01',
-      dueDate: '2023-08-01',
-      status: 'Draft',
-      items: [
-        { description: 'Consulting Hours', quantity: 5, price: 175.00 }
-      ]
-    }
-  ]);
-
+  const navigate = useNavigate();
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState('All');
@@ -75,24 +31,59 @@ const Invoices = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const invoicesPerPage = 5;
+  const [totalInvoices, setTotalInvoices] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = 
-      invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.amount.toString().includes(searchTerm);
-    
-    const matchesFilter = 
-      activeFilter === 'All' || 
-      invoice.status === activeFilter;
-    
-    return matchesSearch && matchesFilter;
-  });
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showActionMenu && !e.target.closest('.action-menu-container')) {
+        setShowActionMenu(null);
+      }
+    };
 
-  const indexOfLastInvoice = currentPage * invoicesPerPage;
-  const indexOfFirstInvoice = indexOfLastInvoice - invoicesPerPage;
-  const currentInvoices = filteredInvoices.slice(indexOfFirstInvoice, indexOfLastInvoice);
-  const totalPages = Math.ceil(filteredInvoices.length / invoicesPerPage);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showActionMenu]);
+
+  // Fetch invoices from API
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Authentication token not found');
+        }
+
+        const response = await axios.get('http://localhost:3000/api/invoices', {
+          headers: { Authorization: `Bearer ${token}` },
+          params: {
+            page: currentPage,
+            limit: invoicesPerPage,
+            status: activeFilter === 'All' ? null : activeFilter,
+            search: searchTerm
+          }
+        });
+
+        if (response.data && response.data.success) {
+          setInvoices(response.data.data);
+          setTotalInvoices(response.data.totalInvoices);
+          setTotalPages(response.data.totalPages);
+        } else {
+          throw new Error('Failed to fetch invoices');
+        }
+      } catch (err) {
+        console.error('Error fetching invoices:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvoices();
+  }, [currentPage, activeFilter, searchTerm]);
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
@@ -101,33 +92,69 @@ const Invoices = () => {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-  const toggleActionMenu = (invoiceId) => {
+  const toggleActionMenu = (invoiceId, e) => {
+    e.stopPropagation();
     setShowActionMenu(showActionMenu === invoiceId ? null : invoiceId);
   };
 
-  const markAsPaid = (invoiceId) => {
-    setInvoices(invoices.map(invoice => 
-      invoice.id === invoiceId ? { ...invoice, status: 'Paid' } : invoice
-    ));
-    setShowActionMenu(null);
-    setSuccessMessage(`Invoice ${invoiceId} marked as paid`);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
+  const markAsPaid = async (invoiceId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.patch(
+        `http://localhost:3000/api/invoices/${invoiceId}`,
+        { status: 'Paid' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setInvoices(invoices.map(invoice => 
+        invoice.id === invoiceId ? { ...invoice, status: 'Paid' } : invoice
+      ));
+      setShowActionMenu(null);
+      setSuccessMessage('Invoice marked as paid');
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error updating invoice:', err);
+      setError(err.response?.data?.message || err.message);
+    }
   };
 
-  const sendReminder = (invoiceId) => {
-    setSuccessMessage(`Reminder sent for invoice ${invoiceId}`);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
-    setShowActionMenu(null);
-  };
+  // const sendReminder = async (invoiceId) => {
+  //   try {
+  //     const token = localStorage.getItem('token');
+  //     await axios.post(
+  //       `http://localhost:3000/api/invoices/${invoiceId}/reminder`,
+  //       {},
+  //       { headers: { Authorization: `Bearer ${token}` } }
+  //     );
 
-  const deleteInvoice = (invoiceId) => {
-    setInvoices(invoices.filter(invoice => invoice.id !== invoiceId));
-    setSuccessMessage(`Invoice ${invoiceId} deleted`);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
-    setShowActionMenu(null);
+  //     setSuccessMessage('Reminder sent successfully');
+  //     setShowSuccess(true);
+  //     setTimeout(() => setShowSuccess(false), 3000);
+  //     setShowActionMenu(null);
+  //   } catch (err) {
+  //     console.error('Error sending reminder:', err);
+  //     setError(err.response?.data?.message || err.message);
+  //   }
+  // };
+
+  const deleteInvoice = async (invoiceId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(
+        `http://localhost:3000/api/invoices/${invoiceId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setInvoices(invoices.filter(invoice => invoice.id !== invoiceId));
+      setSuccessMessage('Invoice deleted successfully');
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+      setShowActionMenu(null);
+    } catch (err) {
+      console.error('Error deleting invoice:', err);
+      setError(err.response?.data?.message || err.message);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -141,6 +168,7 @@ const Invoices = () => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     const options = { month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('en-US', options);
   };
@@ -153,6 +181,28 @@ const Invoices = () => {
     }).format(amount);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6 flex items-center justify-center">
+        <div className="text-lg font-medium text-gray-700">Loading invoices...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6 flex items-center justify-center">
+        <div className="text-lg font-medium text-red-600">Error: {error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
@@ -164,7 +214,7 @@ const Invoices = () => {
           </div>
           <div className="flex gap-3">
             <Link
-              to="/invoices/create"
+              to="/invoices/add"
               className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition-all duration-200 font-medium shadow-sm"
             >
               <FiPlus size={16} />
@@ -255,7 +305,7 @@ const Invoices = () => {
         </div>
 
         {/* Invoices List */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
           {/* Table Header */}
           <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wider">
             <div className="col-span-3">Invoice</div>
@@ -267,25 +317,27 @@ const Invoices = () => {
           </div>
 
           {/* Invoices */}
-          {currentInvoices.length > 0 ? (
-            currentInvoices.map((invoice) => (
-              <div key={invoice.id} className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150">
+          {invoices.length > 0 ? (
+            invoices.map((invoice) => (
+              <div key={invoice.id} className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 relative">
                 {/* Invoice ID */}
                 <div className="col-span-3 flex items-center">
                   <div className="flex items-center gap-2">
                     <FiDollarSign className="text-gray-400" size={16} />
-                    <span className="font-medium text-gray-900">{invoice.id}</span>
+                    <span className="font-medium text-gray-900">{invoice.invoiceNumber}</span>
                   </div>
                 </div>
 
                 {/* Client */}
                 <div className="col-span-3 flex items-center">
-                  <span className="text-gray-700">{invoice.client}</span>
+                  <span className="text-gray-700">
+                    {invoice.client?.name || 'N/A'}
+                  </span>
                 </div>
 
                 {/* Amount */}
                 <div className="col-span-2 flex items-center">
-                  <span className="font-medium">{formatCurrency(invoice.amount)}</span>
+                  <span className="font-medium">{formatCurrency(invoice.total)}</span>
                 </div>
 
                 {/* Due Date */}
@@ -306,25 +358,36 @@ const Invoices = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="col-span-1 flex justify-end items-center relative">
+                <div className="col-span-1 flex justify-end items-center action-menu-container">
                   <button 
-                    onClick={() => toggleActionMenu(invoice.id)}
+                    onClick={(e) => toggleActionMenu(invoice.id, e)}
                     className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     <FiMoreVertical size={18} />
                   </button>
+                  
+                  {/* Action Menu */}
                   {showActionMenu === invoice.id && (
-                    <div className="absolute z-10 top-10 right-0 w-48 bg-white rounded-lg shadow-lg border border-gray-200 animate-fade-in">
+                    <div className="absolute z-50 right-6 top-14 w-48 bg-white rounded-lg shadow-lg border border-gray-200 animate-fade-in">
                       <div className="py-1">
-                        <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                        {/* <button 
+                          onClick={() => navigate(`/invoices/${invoice.id}`)}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
                           <FiDownload size={14} />
-                          <span>Download</span>
-                        </button>
-                        <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                          <span>View/Download</span>
+                        </button> */}
+                        <button 
+                          onClick={() => {
+                            navigate(`/invoices/${invoice.id}/print`);
+                            setShowActionMenu(null);
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
                           <FiPrinter size={14} />
                           <span>Print</span>
                         </button>
-                        <button 
+                        {/* <button 
                           onClick={() => {
                             sendReminder(invoice.id);
                           }}
@@ -332,7 +395,7 @@ const Invoices = () => {
                         >
                           <FiMail size={14} />
                           <span>Send Reminder</span>
-                        </button>
+                        </button> */}
                         {invoice.status !== 'Paid' && (
                           <button
                             onClick={() => {
@@ -381,14 +444,14 @@ const Invoices = () => {
         </div>
 
         {/* Pagination */}
-        {filteredInvoices.length > invoicesPerPage && (
+        {totalInvoices > invoicesPerPage && (
           <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
             <div className="text-sm text-gray-500">
-              Showing <span className="font-medium">{indexOfFirstInvoice + 1}</span> to{' '}
+              Showing <span className="font-medium">{(currentPage - 1) * invoicesPerPage + 1}</span> to{' '}
               <span className="font-medium">
-                {Math.min(indexOfLastInvoice, filteredInvoices.length)}
+                {Math.min(currentPage * invoicesPerPage, totalInvoices)}
               </span>{' '}
-              of <span className="font-medium">{filteredInvoices.length}</span> invoices
+              of <span className="font-medium">{totalInvoices}</span> invoices
             </div>
             <div className="flex gap-1">
               <button

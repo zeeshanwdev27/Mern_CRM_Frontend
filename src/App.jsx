@@ -31,6 +31,8 @@ import NewProject from './pages/Projects/NewProject.jsx';
 import EditProject from './pages/Projects/EditProject.jsx';
 
 import AddTask from './pages/Tasks/AddTask.jsx';
+import AddInvoice from './pages/Invoices/AddInvoice.jsx';
+import PrintInvoice from './pages/Invoices/PrintInvoice.jsx';
 
 
 const ProtectedLayout = ({ children }) => (
@@ -66,6 +68,8 @@ function App() {
         <Route path="/projects/newproject" element={<ProtectedLayout><NewProject /></ProtectedLayout>} />
         <Route path="/projects/editproject/:id" element={<ProtectedLayout><EditProject /></ProtectedLayout>} />
         <Route path="/tasks/add" element={<ProtectedLayout><AddTask /></ProtectedLayout>} />
+        <Route path="/invoices/add" element={<ProtectedLayout><AddInvoice /></ProtectedLayout>} />
+        <Route path="/invoices/:id/print" element={<ProtectedLayout><PrintInvoice /></ProtectedLayout>} />
 
 
 
