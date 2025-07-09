@@ -34,6 +34,8 @@ import AddTask from './pages/Tasks/AddTask.jsx';
 import AddInvoice from './pages/Invoices/AddInvoice.jsx';
 import PrintInvoice from './pages/Invoices/PrintInvoice.jsx';
 
+import SingInProtected from './components/Protected/SingInProtected.jsx'
+
 
 const ProtectedLayout = ({ children }) => (
   <ProtectedRoute>
@@ -80,8 +82,8 @@ function App() {
         <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
 
 
-        <Route path='/' element={<SignIn />} />
-        <Route path='/signin' element={<SignIn />} />
+        <Route path='/' element={<SingInProtected><SignIn /></SingInProtected>} />
+        <Route path='/signin' element={<SingInProtected><SignIn /></SingInProtected>} />
         <Route path='/logout' element={<LogOut />} />
       </Routes>
     </Router>
