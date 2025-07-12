@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bar, Pie, Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
 import DatePicker from 'react-datepicker';
@@ -65,7 +65,6 @@ const Reports = () => {
     financial: null,
     projects: null,
     tasks: null,
-    // team: null
   });
 
   // Time range options
@@ -83,7 +82,6 @@ const Reports = () => {
     { value: 'financial', label: 'Financial', icon: <FiDollarSign /> },
     { value: 'projects', label: 'Projects', icon: <FiUsers /> },
     { value: 'tasks', label: 'Tasks', icon: <FiCheckCircle /> },
-    // { value: 'team', label: 'Team', icon: <FiUsers /> }
   ];
 
   // Export format options
@@ -97,40 +95,37 @@ const Reports = () => {
   // Fetch data from backend
   useEffect(() => {
     const fetchData = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+      try {
+        setLoading(true);
+        setError(null);
 
-    // Calculate date range based on selected time range
-    let startDate, endDate = new Date();
-    switch (timeRange) {
-      case '7days':
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 7);
-        break;
-      case '30days':
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 30);
-        break;
-      case '90days':
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 90);
-        break;
-      case '12months':
-        startDate = new Date();
-        startDate.setFullYear(startDate.getFullYear() - 1);
-        break;
-      case 'custom':
-        startDate = customStartDate;
-        endDate = customEndDate || new Date();
-        break;
-      default:
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 30);
-    }
-
-    // Format dates for API - use ISO string and split at 'T' to get just the date part
-    const formatDate = (date) => date ? date.toISOString().split('T')[0] : null;
+        // Calculate date range based on selected time range
+        let startDate, endDate = new Date();
+        switch (timeRange) {
+          case '7days':
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+          case '30days':
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            break;
+          case '90days':
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 90);
+            break;
+          case '12months':
+            startDate = new Date();
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            break;
+          case 'custom':
+            startDate = customStartDate;
+            endDate = customEndDate || new Date();
+            break;
+          default:
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+        }
 
         // Fetch all data in parallel
         const [projectsRes, tasksRes, invoicesRes] = await Promise.all([
@@ -138,11 +133,6 @@ const Reports = () => {
           axios.get(`${API_BASE_URL}/api/tasks`),
           axios.get(`${API_BASE_URL}/api/invoices`)
         ]);
-
-        console.log(projectsRes.data);
-        console.log(tasksRes.data);
-        console.log(invoicesRes.data);
-        
 
         // Process data for reports
         const processedData = processReportData(
@@ -176,9 +166,25 @@ const Reports = () => {
       });
     };
 
-    
-    // Process projects
-    const recentProjects = filterByDateRange(projects, 'startDate');
+    // Process projects - transform to match what Reports expects
+    const recentProjects = filterByDateRange(projects, 'startDate').map(project => {
+      // Find the matching project in client's projects array
+      const matchedProject = project.client?.projects?.find(
+        p => p._id.toString() === project.clientProjectId.toString()
+      );
+      
+      return {
+        _id: project._id,
+        name: matchedProject?.name || 'Unnamed Project',
+        status: project.status,
+        startDate: project.startDate,
+        progress: project.progress,
+        budget: matchedProject?.value || 0,
+        actualCost: 0, // You might need to calculate this from actual data
+        client: project.client?.name || 'Unknown Client'
+      };
+    });
+
     const projectStatusCounts = recentProjects.reduce((acc, project) => {
       acc[project.status] = (acc[project.status] || 0) + 1;
       return acc;
@@ -334,7 +340,7 @@ const Reports = () => {
           item: project.name,
           status: project.status === 'active' ? 'In Progress' : 
                  project.status === 'completed' ? 'Completed' : 'On Hold',
-          value: `$${project.value || 0}`,
+          value: `$${project.budget || 0}`,
           date: project.startDate
         }))
       },
@@ -466,17 +472,15 @@ const Reports = () => {
             icon: <FiCheckCircle className="text-emerald-500" /> 
           },
           { 
-            title: "Behind Schedule", 
-            value: recentProjects.filter(p => 
-              new Date(p.deadline) < new Date() && p.status !== 'completed'
-            ).length, 
+            title: "On Hold This Month", 
+            value: recentProjects.filter(p => p.status === 'hold').length, 
             change: "-2", 
             trend: "down", 
             icon: <FiClock className="text-amber-500" /> 
           },
           { 
             title: "Avg. Completion Time", 
-            value: "12.5 days", 
+            value: "NF", 
             change: "-1.2", 
             trend: "down", 
             icon: <FiTrendingDown className="text-red-500" /> 
@@ -562,7 +566,8 @@ const Reports = () => {
           status: project.status === 'active' ? 'In Progress' : 
                  project.status === 'completed' ? 'Completed' : 'On Hold',
           progress: `${project.progress || 0}%`,
-          date: project.startDate
+          date: project.startDate,
+          client: project.client
         }))
       },
       tasks: {
@@ -1046,7 +1051,11 @@ const Reports = () => {
                 {filteredTableData.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-900">{item[activeReport === 'financial' ? 'client' : activeReport === 'projects' ? 'project' : 'item']}</div>
+                      <div className="font-medium text-gray-900">
+                        {activeReport === 'financial' ? item.client : 
+                         activeReport === 'projects' ? item.project : 
+                         item.item}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
@@ -1054,7 +1063,9 @@ const Reports = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {item[activeReport === 'financial' ? 'amount' : activeReport === 'projects' ? 'progress' : 'value']}
+                      {activeReport === 'financial' ? item.amount : 
+                       activeReport === 'projects' ? item.progress : 
+                       item.value}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(item.date).toLocaleDateString()}

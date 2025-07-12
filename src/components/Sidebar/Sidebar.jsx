@@ -14,9 +14,11 @@ import {
   FiDollarSign,
   FiLayers
 } from 'react-icons/fi';
+import axios from 'axios';
 
 const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
   const location = useLocation();
+  const [companyName, setCompanyName] = useState("")
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [hoverStates, setHoverStates] = useState({
     main: null,
@@ -28,6 +30,17 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
   useEffect(() => {
     setActiveSubmenu(null);
   }, [location.pathname]);
+
+
+  useEffect(()=>{
+    const fetchData = async()=>{
+      const response = await axios.get("http://localhost:3000/api/company")
+      setCompanyName(response.data.data.name)
+    }
+    fetchData()
+  },[])
+
+
 
   const handleLinkClick = () => {
     onNavigate?.(); // This will close the mobile sidebar
@@ -102,7 +115,7 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
       <div className="p-4 flex items-center justify-between border-b border-gray-700">
         {!isCollapsed && (
           <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-            AgencyCRM
+            {companyName}
           </h1>
         )}
         <button

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import axios from 'axios';
+import React, { useEffect, useState } from 'react';
 import {
   FiSettings,
   FiBell,
@@ -13,13 +14,40 @@ import {
 } from 'react-icons/fi';
 
 const SettingsPage = () => {
-  // State for form inputs
+
+  const [companyName, setCompanyName] = useState("")
+  const [companyId, setCompanyId] = useState(null);
+
+
+  useEffect(()=>{
+    const fetchData = async()=>{
+      const response = await axios.get("http://localhost:3000/api/company")
+      setCompanyName(response.data.data)
+      setCompanyId(response.data.data._id);
+    }
+    fetchData()
+  },[])
+
+  
+
+  useEffect(() => {
+  if (companyName) {
+    setGeneralSettings((prev) => ({
+      ...prev,
+      companyName: companyName.name,
+    }));
+  }
+}, [companyName]);
+
+
+
   const [generalSettings, setGeneralSettings] = useState({
-    companyName: 'AgencyCRM',
+    companyName,
     timezone: 'UTC',
     currency: 'USD'
   });
 
+  
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
     inAppNotifications: true,
@@ -88,16 +116,43 @@ const SettingsPage = () => {
   };
 
   // Handle form submission
-  const handleSave = (e) => {
-    e.preventDefault();
-    if (accountSettings.newPassword && accountSettings.newPassword !== accountSettings.confirmNewPassword) {
-      alert('New password and confirm password do not match!');
-      return;
+const handleSave = async (e) => {
+  e.preventDefault();
+
+  if (accountSettings.newPassword && accountSettings.newPassword !== accountSettings.confirmNewPassword) {
+    alert('New password and confirm password do not match!');
+    return;
+  }
+
+  try {
+    // ✅ Update company name to backend
+    if (companyId) {
+      await axios.put(`http://localhost:3000/api/company/${companyId}`, {
+        name: generalSettings.companyName,
+      });
+      console.log("Company name updated successfully");
     }
-    console.log('Saving settings:', { generalSettings, notificationSettings, appearanceSettings, accountSettings });
+
+    console.log('Saving settings:', {
+      generalSettings,
+      notificationSettings,
+      appearanceSettings,
+      accountSettings,
+    });
+
     setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
-  };
+
+    setTimeout(() => {
+      setIsSaved(false);
+      // ✅ Refresh the page
+      window.location.reload();
+    }, 500);
+
+  } catch (error) {
+    console.error("Error saving settings:", error);
+    alert("Failed to save settings.");
+  }
+};
 
   return (
     <div className={`min-h-screen ${appearanceSettings.theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'} p-4 md:p-6 transition-colors duration-300`}>
@@ -125,6 +180,7 @@ const SettingsPage = () => {
         `}
       </style>
       <div className="max-w-7xl mx-auto">
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
