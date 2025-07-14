@@ -125,12 +125,20 @@ const handleSave = async (e) => {
   }
 
   try {
-    // ✅ Update company name to backend
+    // If companyId exists, update the company
     if (companyId) {
       await axios.put(`http://localhost:3000/api/company/${companyId}`, {
         name: generalSettings.companyName,
       });
       console.log("Company name updated successfully");
+    } else {
+      // If companyId doesn't exist, create a new company
+      const response = await axios.post(`http://localhost:3000/api/company`, {
+        name: generalSettings.companyName,
+      });
+      console.log("Company name created successfully");
+      // Update the companyId in state with the newly created company's ID
+      setCompanyId(response.data.data._id);
     }
 
     console.log('Saving settings:', {
@@ -144,7 +152,6 @@ const handleSave = async (e) => {
 
     setTimeout(() => {
       setIsSaved(false);
-      // ✅ Refresh the page
       window.location.reload();
     }, 500);
 
