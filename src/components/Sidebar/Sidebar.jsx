@@ -34,7 +34,7 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
 
   useEffect(()=>{
     const fetchData = async()=>{
-      const response = await axios.get("http://localhost:3000/api/company")
+      const response = await axios.get("http://localhost:3000/api/settings/general")
       setCompanyName(response.data.data.name)
     }
     fetchData()
