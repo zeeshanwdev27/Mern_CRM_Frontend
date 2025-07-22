@@ -56,14 +56,31 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
         setLoading(true);
         setError(null);
 
         // Fetch all data in parallel - using same endpoints as Reports.jsx
         const [projectsRes, tasksRes, invoicesRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/projects/getprojects`),
-          axios.get(`${API_BASE_URL}/api/tasks`),
-          axios.get(`${API_BASE_URL}/api/invoices`)
+          axios.get(`${API_BASE_URL}/api/projects/getprojects`,{
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }),
+          axios.get(`${API_BASE_URL}/api/tasks`,{
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }),
+          axios.get(`${API_BASE_URL}/api/invoices`,{
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         ]);
 
         // Process data for dashboard using same logic as Reports.jsx

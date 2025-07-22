@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiHome,
   FiUsers,
@@ -10,20 +10,23 @@ import {
   FiSettings,
   FiChevronLeft,
   FiChevronRight,
-  FiMessageSquare,
   FiDollarSign,
   FiLayers
 } from 'react-icons/fi';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
+
+  const navigate = useNavigate();
   const location = useLocation();
-  const [companyName, setCompanyName] = useState("")
+  const [companyName, setCompanyName] = useState("");
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [hoverStates, setHoverStates] = useState({
     main: null,
     sub: null
   });
+  const [userRole, setUserRole] = useState(null);
   const sidebarRef = useRef(null);
   const contentRef = useRef(null);
 
@@ -31,20 +34,25 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
     setActiveSubmenu(null);
   }, [location.pathname]);
 
-
-  useEffect(()=>{
-    const fetchData = async()=>{
-      const response = await axios.get("http://localhost:3000/api/settings/general")
-      setCompanyName(response.data.data.name)
-    }
-    fetchData()
-  },[])
-
-
+  useEffect(() => {
+    const fetchData = async() => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (user && user.role) {
+          setUserRole(user.role.name);
+        }
+        const response = await axios.get("http://localhost:3000/api/settings/general");
+        setCompanyName(response.data.data.name);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleLinkClick = () => {
-    onNavigate?.(); // This will close the mobile sidebar
-    setActiveSubmenu(null); // Close any open submenus
+    onNavigate?.();
+    setActiveSubmenu(null);
   };
 
   const toggleSubmenu = (menu) => {
@@ -63,43 +71,141 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
     }
   }, [isCollapsed]);
 
-  const menuItems = [
-    { name: 'Dashboard', icon: <FiHome size={20} />, path: '/dashboard' },
-    { name: 'Clients', icon: <FiBriefcase size={20} />, path: '/clients' },
-    { name: 'Contacts', icon: <FiUsers size={20} />, path: '/contacts' },
-    { name: 'Projects', icon: <FiLayers size={20} />, path: '/projects' },
-    // {
-    //   name: 'Projects',
-    //   icon: <FiLayers size={20} />,
-    //   path: '/projects',
-    //   submenu: [
-    //     { name: 'All Projects', path: '/projects/all-projects' },
-    //     { name: 'Active', path: '/projects/active' },
-    //     { name: 'Completed', path: '/projects/completed' },
-    //     { name: 'On Hold', path: '/projects/on-hold' }
-    //   ]
-    // },
-    { 
-      name: 'Team', 
-      icon: <FiUsers size={20} />,
-      path: '/team',
-      submenu: [
-        { name: 'All Members', path: '/team/all-members' },
-        // { name: 'Add Member', path: '/team/add' },
-        { name: 'All Roles', path: '/team/roles' }
-      ]
-    },
-    { name: 'Tasks', icon: <FiCalendar size={20} />, path: '/tasks' },
-    { name: 'Invoices', icon: <FiDollarSign size={20} />, path: '/invoices' },
-    { name: 'Reports', icon: <FiPieChart size={20} />, path: '/reports' },
-    { name: 'Settings', icon: <FiSettings size={20} />, path: '/settings' }
-  ];
+  const getMenuItems = () => {
+    const baseItems = [
+      { name: 'Dashboard', icon: <FiHome size={20} />, path: '/dashboard', allowedRoles: ['Administrator','Manager'] }
+    ];
+
+    // Define all possible menu items with their allowed roles
+    const allMenuItems = [
+      {
+        name: 'Team',
+        icon: <FiUsers size={20} />,
+        path: '/team',
+        submenu: [
+          { name: 'All Members', path: '/team/all-members' },
+          { name: 'All Roles', path: '/team/roles' }
+        ],
+        allowedRoles: ['Administrator','Manager']
+      },
+      {
+        name: 'Reports',
+        icon: <FiPieChart size={20} />,
+        path: '/reports',
+        allowedRoles: ['Administrator', 'Manager']
+      },
+      {
+        name: 'Settings',
+        icon: <FiSettings size={20} />,
+        path: '/settings',
+        allowedRoles: ['Administrator']
+      },
+      {
+        name: 'Clients',
+        icon: <FiBriefcase size={20} />,
+        path: '/clients',
+        allowedRoles: ['Sales']
+      },
+      {
+        name: 'Contacts',
+        icon: <FiUsers size={20} />,
+        path: '/contacts',
+        allowedRoles: ['Sales']
+      },
+      {
+        name: 'Projects',
+        icon: <FiLayers size={20} />,
+        path: '/projects',
+        allowedRoles: ['Project Manager']
+      },
+      {
+        name: 'Tasks',
+        icon: <FiCalendar size={20} />,
+        path: '/tasks',
+        allowedRoles: ['Project Manager']
+      },
+      {
+        name: 'Invoices',
+        icon: <FiDollarSign size={20} />,
+        path: '/invoices',
+        allowedRoles: ['Project Manager']
+      }
+    ];
+
+  const filteredBaseItems = baseItems.filter(item => {
+    if (!item.allowedRoles) return true;
+    return item.allowedRoles.includes(userRole);
+  });
+
+  const filteredItems = allMenuItems.filter(item => {
+    if (!item.allowedRoles) return true;
+    return item.allowedRoles.includes(userRole);
+  });
+
+  // For items with submenus, filter subitems if needed
+  filteredItems.forEach(item => {
+    if (item.submenu) {
+      item.submenu = item.submenu.filter(subItem => {
+        return true;
+      });
+    }
+  });
+
+  return [...filteredBaseItems, ...filteredItems];
+};
+
+  const menuItems = getMenuItems();
 
   const LogoutBtn = {
     name: 'Logout',
     icon: <FiLogOut size={20} />,
     path: '/logout'
   };
+
+const handleLogout = (e) => {
+  e.preventDefault();
+  
+  // Clear auth data with error handling
+  try {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  } catch (error) {
+    console.error("Logout storage cleanup failed:", error);
+    // Continue with logout anyway
+  }
+
+  // Constants for timing (easily configurable)
+  const TOAST_DURATION = 2000;
+  const FALLBACK_DELAY = TOAST_DURATION + 500; // Always longer than toast
+
+  // Navigation function with safety checks
+  const performNavigation = () => {
+    if (window.location.pathname !== "/signin") {
+      navigate("/signin", { replace: true }); // Prevent back navigation
+    }
+  };
+
+  // Show toast with cleanup
+  const toastId = toast.success("Logout Successful", {
+    autoClose: TOAST_DURATION,
+    onClose: () => {
+      clearTimeout(fallbackTimer);
+      performNavigation();
+    }
+  });
+
+  // Fallback navigation timer
+  const fallbackTimer = setTimeout(() => {
+    toast.dismiss(toastId); // Clean up toast if still visible
+    performNavigation();
+  }, FALLBACK_DELAY);
+
+  // Cleanup function for component unmount
+  return () => {
+    clearTimeout(fallbackTimer);
+    toast.dismiss(toastId);
+  };
+};
 
   return (
     <div
@@ -233,8 +339,8 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
 
       {/* Logout */}
       <div className="p-4 border-t border-gray-700">
-        <Link
-          to={LogoutBtn.path}
+        <button
+          onClick={handleLogout}
           onMouseEnter={() => setHoverStates({ ...hoverStates, main: 'logout' })}
           onMouseLeave={() => setHoverStates({ ...hoverStates, main: null })}
           className={`flex items-center p-3 rounded-lg transition-all duration-200
@@ -256,7 +362,7 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
               )}
             </>
           )}
-        </Link>
+        </button>
       </div>
     </div>
   );

@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { ToastContainer, toast, Bounce } from "react-toastify";
+import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+
+const API_BASE_URL = "http://localhost:3000";
 
 const SignIn = () => {
   const [formData, setFormData] = useState({
@@ -21,49 +23,48 @@ const SignIn = () => {
 
   const handleOnSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      const request = await axios.post(
-        "http://localhost:3000/api/signin",
+      const { data } = await axios.post(
+        `${API_BASE_URL}/api/signin`,
         formData,
+        { timeout: 10000 }
       );
-      const response = request.data;
 
-      localStorage.setItem("token", response.token)
-      localStorage.setItem("user", JSON.stringify(response.user))
-      
-      toast.success("Successfully logged in");
-
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1000);
+      try {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+      } catch (storageError) {
+        console.error("Storage error:", storageError);
+        toast.error("Could not save session data");
+        return;
+      }
 
       setFormData({
         email: "",
         password: "",
       });
+
+      toast.success("Successfully logged in", { autoClose: 1500 });
+
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1600);
+
+
     } catch (error) {
-      console.error(error);
-      toast.error(error.response?.data?.message || "Login failed");
+      const errorMessage = 
+      error.response?.data?.message ||
+      error.message ||
+      "Login failed. Please try again later.";
+    
+    console.error("Login error:", error);
+    toast.error(errorMessage);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick={false}
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-        transition={Bounce}
-      />
-
       <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
           Sign In

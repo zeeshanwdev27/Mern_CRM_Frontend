@@ -12,7 +12,9 @@ import {
   FiSave,
   FiCheckCircle,
 } from "react-icons/fi";
-import { ToastContainer, toast, Bounce } from "react-toastify";
+import { toast } from "react-toastify";
+
+const API_BASE_URL = "http://localhost:3000";
 
 const SettingsPage = () => {
   const [companyName, setCompanyName] = useState("");
@@ -21,7 +23,7 @@ const SettingsPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       const response = await axios.get(
-        "http://localhost:3000/api/settings/general"
+        `${API_BASE_URL}/api/settings/general`
       );
       setCompanyName(response.data.data);
       setCompanyId(response.data.data._id);
@@ -72,7 +74,7 @@ const SettingsPage = () => {
         if (!token) throw new Error("Please login to access account settings");
 
         const response = await axios.get(
-          "http://localhost:3000/api/settings/account",
+          `${API_BASE_URL}/api/settings/account`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -143,8 +145,6 @@ const SettingsPage = () => {
     setAccountSettings((prev) => ({ ...prev, [name]: value }));
   };
 
-
-
   // Handle form submissions
   const handleSave = async (e) => {
     e.preventDefault();
@@ -181,19 +181,34 @@ const SettingsPage = () => {
     }
 
     try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Please login to access account settings");
+
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      const requestData = {
+        name: generalSettings.companyName,
+      };
+
+      let response;
+
       if (companyId) {
-        await axios.put(
-          `http://localhost:3000/api/settings/general/${companyId}`,
-          {
-            name: generalSettings.companyName,
-          }
+        // PUT request for update
+        response = await axios.put(
+          `${API_BASE_URL}/api/settings/general/${companyId}`, // Using relative path
+          requestData,
+          config // Correct config position
         );
       } else {
-        const response = await axios.post(
-          `http://localhost:3000/api/settings/general`,
-          {
-            name: generalSettings.companyName,
-          }
+        // POST request for create
+        response = await axios.post(
+          `${API_BASE_URL}/api/settings/general`,
+          requestData,
+          config // Correct config position
         );
         setCompanyId(response.data.data._id);
       }
@@ -247,7 +262,7 @@ const SettingsPage = () => {
       // Only proceed if there are changes
       if (Object.keys(updateData).length > 0) {
         await axios.put(
-          "http://localhost:3000/api/settings/account/update",
+          `${API_BASE_URL}/api/settings/account/update`,
           updateData,
           {
             headers: {
@@ -285,10 +300,8 @@ const SettingsPage = () => {
     }
   };
 
-
-
   // Loading & Error Display
-    if (loading) {
+  if (loading) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-6 flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -314,20 +327,6 @@ const SettingsPage = () => {
           : "bg-gray-50 text-gray-900"
       } p-4 md:p-6 transition-colors duration-300`}
     >
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick={false}
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-        transition={Bounce}
-      />
-
       <style>
         {`
           @keyframes slideIn {

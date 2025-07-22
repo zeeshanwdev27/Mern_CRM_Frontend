@@ -32,7 +32,15 @@ const AddClient = () => {
     const fetchData = async () => {
       if (!id) return;
       try {
-        const response = await axios.get(`http://localhost:3000/api/clients/add/${id}`);
+        const token = localStorage.getItem('token')
+        if(!token){
+          throw new Error("Authentication Required")
+        }
+        const response = await axios.get(`http://localhost:3000/api/clients/add/${id}`,{
+          headers:{
+            'Authorization': `Bearer ${token}`
+          }
+        });
         const data = response.data.data.contact;
         if (data) {
           setFormData({

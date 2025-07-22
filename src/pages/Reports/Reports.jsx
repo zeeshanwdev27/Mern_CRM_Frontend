@@ -96,6 +96,12 @@ const Reports = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
+
         setLoading(true);
         setError(null);
 
@@ -126,12 +132,25 @@ const Reports = () => {
             startDate = new Date();
             startDate.setDate(startDate.getDate() - 30);
         }
+        
 
         // Fetch all data in parallel
         const [projectsRes, tasksRes, invoicesRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/projects/getprojects`),
-          axios.get(`${API_BASE_URL}/api/tasks`),
-          axios.get(`${API_BASE_URL}/api/invoices`)
+          axios.get(`${API_BASE_URL}/api/projects/getprojects`,{
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }),
+          axios.get(`${API_BASE_URL}/api/tasks`,{
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }),
+          axios.get(`${API_BASE_URL}/api/invoices`,{
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         ]);
 
         // Process data for reports
