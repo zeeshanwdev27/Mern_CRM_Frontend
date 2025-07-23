@@ -21,47 +21,61 @@ const SignIn = () => {
     }));
   };
 
-  const handleOnSubmit = async (e) => {
-    e.preventDefault();
+const handleOnSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const { data } = await axios.post(
+      `${API_BASE_URL}/api/signin`,
+      formData,
+      { timeout: 10000 }
+    );
 
     try {
-      const { data } = await axios.post(
-        `${API_BASE_URL}/api/signin`,
-        formData,
-        { timeout: 10000 }
-      );
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+    } catch (storageError) {
+      console.error("Storage error:", storageError);
+      toast.error("Could not save session data");
+      return;
+    }
 
-      try {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-      } catch (storageError) {
-        console.error("Storage error:", storageError);
-        toast.error("Could not save session data");
-        return;
+    setFormData({
+      email: "",
+      password: "",
+    });
+
+    toast.success("Successfully logged in", { autoClose: 1500 });
+
+    // Redirect based on user role
+    setTimeout(() => {
+      const userRole = data.user.role?.name;
+      switch(userRole) {
+        case 'Sales':
+          navigate('/clients');
+          break;
+        case 'Project Manager':
+          navigate('/projects');
+          break;
+        case 'Administrator':
+        case 'Manager':
+          navigate('/dashboard');
+          break;
+        default:
+          navigate('/dashboard'); 
       }
+    }, 1600);
 
-      setFormData({
-        email: "",
-        password: "",
-      });
-
-      toast.success("Successfully logged in", { autoClose: 1500 });
-
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1600);
-
-
-    } catch (error) {
-      const errorMessage = 
+  } catch (error) {
+    const errorMessage = 
       error.response?.data?.message ||
       error.message ||
       "Login failed. Please try again later.";
     
     console.error("Login error:", error);
     toast.error(errorMessage);
-    }
-  };
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">

@@ -343,7 +343,7 @@ const handleLogout = (e) => {
           onClick={handleLogout}
           onMouseEnter={() => setHoverStates({ ...hoverStates, main: 'logout' })}
           onMouseLeave={() => setHoverStates({ ...hoverStates, main: null })}
-          className={`flex items-center p-3 rounded-lg transition-all duration-200
+          className={`flex items-center p-3 rounded-lg transition-all duration-200 cursor-pointer
             ${
               location.pathname === LogoutBtn.path
                 ? 'bg-gray-800 text-red-400'
