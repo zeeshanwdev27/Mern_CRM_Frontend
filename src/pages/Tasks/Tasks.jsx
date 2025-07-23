@@ -23,6 +23,8 @@ import {
 } from 'react-icons/fi';
 import axios from 'axios';
 
+const API_BASE_URL = "http://localhost:3000";
+
 // Status configuration
 const statusOptions = [
   { 
@@ -364,7 +366,7 @@ const Tasks = () => {
         if (!token) throw new Error("No authentication token found");
 
         // Fetch tasks with populated assignees
-        const response = await axios.get("http://localhost:3000/api/tasks", {
+        const response = await axios.get(`${API_BASE_URL}/api/tasks`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           }

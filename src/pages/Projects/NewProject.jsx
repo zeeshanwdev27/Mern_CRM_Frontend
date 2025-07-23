@@ -17,6 +17,8 @@ import { useNavigate, Link } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
+const API_BASE_URL = "http://localhost:3000";
+
 const NewProject = () => {
   const navigate = useNavigate();
   const [clients, setClients] = useState([]);
@@ -38,18 +40,19 @@ const NewProject = () => {
     deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
 
+  const token = localStorage.getItem("token");
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem("token");
         if (!token) {
           throw new Error("No authentication token found");
         }
         const [clientsRes, teamRes] = await Promise.all([
-          axios.get("http://localhost:3000/api/clients/getclients", {
+          axios.get(`${API_BASE_URL}/api/clients/getclients`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get("http://localhost:3000/api/users/allusers", {
+          axios.get(`${API_BASE_URL}/api/users/allusers`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -154,7 +157,7 @@ const NewProject = () => {
       };
 
       const response = await axios.post(
-        "http://localhost:3000/api/projects/addproject",
+        `${API_BASE_URL}/api/projects/addproject`,
         formattedData,
         {
           headers: {

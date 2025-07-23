@@ -38,6 +38,9 @@ ChartJS.register(
   Legend
 );
 
+const API_BASE_URL = "http://localhost:3000";
+
+
 const AllProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,12 +48,17 @@ const AllProjects = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const token = localStorage.getItem('token')
 
   // Fetch projects from backend
 useEffect(() => {
   const fetchProjects = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/projects/getprojects');
+      const response = await axios.get(`${API_BASE_URL}/api/projects/getprojects`,{
+        headers:{
+          'Authorization': `Bearer ${token}`
+        }
+      });
       console.log(response.data);
       
       // Transform the data to match frontend structure
@@ -89,7 +97,11 @@ useEffect(() => {
   const handleDeleteProject = async (id) => {
     try {
       console.log(id);
-      await axios.delete(`http://localhost:3000/api/projects/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/projects/${id}`,{
+        headers:{
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setProjects(projects.filter(project => project.id !== id));
     } catch (err) {
       setError(err.message);

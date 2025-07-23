@@ -76,6 +76,7 @@ function App() {
         <Route path="/invoices" element={<ProtectedLayout allowedRoles={['Project Manager']}><Invoices /></ProtectedLayout>} />
         <Route path="/invoices/add" element={<ProtectedLayout allowedRoles={['Project Manager']}><AddInvoice /></ProtectedLayout>} />
         <Route path="/invoices/:id/print" element={<ProtectedLayout allowedRoles={['Project Manager']}><PrintInvoice /></ProtectedLayout>} />
+        
         <Route path="/projects" element={<ProtectedLayout allowedRoles={['Project Manager']}><AllProjects /></ProtectedLayout>} />
         <Route path="/projects/newproject" element={<ProtectedLayout allowedRoles={['Project Manager']}><NewProject /></ProtectedLayout>} />
         <Route path="/projects/editproject/:id" element={<ProtectedLayout allowedRoles={['Project Manager']}><EditProject /></ProtectedLayout>} />

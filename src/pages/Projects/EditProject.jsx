@@ -17,6 +17,8 @@ import { useNavigate, Link, useParams } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
+const API_BASE_URL = "http://localhost:3000";
+
 const EditProject = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -51,7 +53,7 @@ const EditProject = () => {
         }
 
         // Fetch project data
-        const projectResponse = await axios.get(`http://localhost:3000/api/projects/getprojects`, {
+        const projectResponse = await axios.get(`${API_BASE_URL}/api/projects/getprojects`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         
@@ -63,10 +65,10 @@ const EditProject = () => {
 
         // Fetch clients and team members
         const [clientsRes, teamRes] = await Promise.all([
-          axios.get("http://localhost:3000/api/clients/getclients", {
+          axios.get(`${API_BASE_URL}/api/clients/getclients`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get("http://localhost:3000/api/users/allusers", {
+          axios.get(`${API_BASE_URL}/api/users/allusers`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -215,7 +217,7 @@ const EditProject = () => {
       };
 
       const response = await axios.put(
-        `http://localhost:3000/api/projects/${id}`,
+        `${API_BASE_URL}/api/projects/${id}`,
         formattedData,
         {
           headers: {
