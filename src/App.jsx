@@ -1,43 +1,50 @@
 import './App.css'
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import ProtectedRoute from "./components/Protected/ProtectedRoute.jsx"
-import SignIn from './pages/Accounts/Sign-in/SignIn'
-// import LogOut from './pages/Accounts/Log-out/LogOut.jsx';
-import Layout from "./components/Layout/Layout.jsx"
-import Dashboard from "./pages/Dashboard/Dashboard.jsx"
-import Clients from './pages/Clients/Clients.jsx';
-import Contacts from "./pages/Contacts/Contacts.jsx"
-import AllProjects from './pages/Projects/AllProject.jsx';
-import AllMembers from './pages/Team/Allmembers.jsx';
-import AddMember from './pages/Team/AddMember.jsx';
-import Tasks from './pages/Tasks/Tasks.jsx';
-import Invoices from "./pages/Invoices/Invoices.jsx"
-import Reports from './pages/Reports/Reports.jsx';
-import SettingsPage from './pages/SettingsPage/SettingsPage.jsx'
-import Roles from './pages/Team/Roles.jsx';
-import CreateRole from './pages/Team/CreateRole.jsx';
-
-import EditMember  from './pages/Team/EditMember.jsx'
-import EditRole from './pages/Team/EditRole.jsx';
-import AddDepartment from './pages/Team/AddDepartment.jsx';
-import AddContact from "./pages/Contacts/AddContact.jsx"
-import EditContact from "./pages/Contacts/EditContact.jsx"
-
-import AddClient from "./pages/Clients/AddClient.jsx"
-import EditClient from "./pages/Clients/EditClient.jsx"
-import ClientPreview from "./pages/Clients/ClientPreview.jsx"
-
-import NewProject from './pages/Projects/NewProject.jsx';
-import EditProject from './pages/Projects/EditProject.jsx';
-
-import AddTask from './pages/Tasks/AddTask.jsx';
-import AddInvoice from './pages/Invoices/AddInvoice.jsx';
-import PrintInvoice from './pages/Invoices/PrintInvoice.jsx';
-
-import SingInProtected from './components/Protected/SingInProtected.jsx'
-
 import { ToastContainer, Bounce } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
+
+// components
+import Layout from "./components/Layout/Layout.jsx"
+import ProtectedRoute from "./components/Protected/ProtectedRoute.jsx"
+import SingInProtected from './components/Protected/SingInProtected.jsx'
+
+// Account
+import SignIn from './pages/Accounts/Sign-in/SignIn'
+
+// Admin
+import Dashboard from "./pages/Admin/Dashboard/Dashboard.jsx"
+import Reports from './pages/Admin/Reports/Reports.jsx';
+import SettingsPage from './pages/Admin/SettingsPage/SettingsPage.jsx'
+import AllMembers from './pages/Admin/Team/Allmembers.jsx';
+import AddMember from './pages/Admin/Team/AddMember.jsx';
+import CreateRole from './pages/Admin/Team/CreateRole.jsx';
+import Roles from './pages/Admin/Team/Roles.jsx';
+import EditMember  from './pages/Admin/Team/EditMember.jsx'
+import EditRole from './pages/Admin/Team/EditRole.jsx';
+import AddDepartment from './pages/Admin/Team/AddDepartment.jsx';
+
+// Project Manager
+import AllProjects from './pages/Project_Manager/Projects/AllProject.jsx';
+import NewProject from './pages/Project_Manager/Projects/NewProject.jsx';
+import EditProject from './pages/Project_Manager/Projects/EditProject.jsx';
+import Tasks from './pages/Project_Manager/Tasks/Tasks.jsx';
+import AddTask from './pages/Project_Manager/Tasks/AddTask.jsx';
+import Invoices from "./pages/Project_Manager/Invoices/Invoices.jsx"
+import AddInvoice from './pages/Project_Manager/Invoices/AddInvoice.jsx';
+import PrintInvoice from './pages/Project_Manager/Invoices/PrintInvoice.jsx';
+
+// Sales
+import Contacts from "./pages/Sales/Contacts/Contacts.jsx"
+import AddContact from "./pages/Sales/Contacts/AddContact.jsx"
+import EditContact from "./pages/Sales/Contacts/EditContact.jsx"
+import Clients from './pages/Sales/Clients/Clients.jsx';
+import AddClient from "./pages/Sales/Clients/AddClient.jsx"
+import EditClient from "./pages/Sales/Clients/EditClient.jsx"
+import ClientPreview from "./pages/Sales/Clients/ClientPreview.jsx"
+
+// Production Team
+import MyTasks from './pages/Production_Team/Developers/MyTasks.jsx'
+import MyProjects from './pages/Production_Team/Developers/MyProjects.jsx'
 
 
 const ProtectedLayout = ({ children, allowedRoles = [] }) => (
@@ -48,7 +55,6 @@ const ProtectedLayout = ({ children, allowedRoles = [] }) => (
 
 
 function App() {
-
   return (
     <>
     <Router>
@@ -91,7 +97,9 @@ function App() {
         <Route path="/team/roles/edit/:id" element={<ProtectedLayout allowedRoles={['Administrator','Manager']}><EditRole /></ProtectedLayout>} />
         <Route path="/team/departments/add" element={<ProtectedLayout allowedRoles={['Administrator','Manager']}><AddDepartment /></ProtectedLayout>} />
 
-
+        {/*Production Team Routes */}
+        <Route path="/mytasks/alltasks" element={<ProtectedLayout allowedRoles={['Developer','Designer']}><MyTasks /></ProtectedLayout>} />
+        <Route path="/myprojects/allprojects" element={<ProtectedLayout allowedRoles={['Developer','Designer']}><MyProjects/></ProtectedLayout>} />
 
 
         <Route path='/' element={<SingInProtected><SignIn /></SingInProtected>} />
@@ -115,10 +123,7 @@ function App() {
         theme="light"
         transition={Bounce}
       />
-
-
-
-
+      
     </>
   )
 }

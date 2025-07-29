@@ -129,7 +129,20 @@ const Sidebar = ({ isCollapsed, onToggleCollapse, onNavigate }) => {
         icon: <FiDollarSign size={20} />,
         path: '/invoices',
         allowedRoles: ['Project Manager']
-      }
+      },
+      {
+        name: 'My Projects',
+        icon: <FiLayers size={20} />,
+        path: '/myprojects/allprojects',
+        allowedRoles: ['Developer','Designer']
+      },
+      {
+        name: 'My Tasks',
+        icon: <FiCalendar size={20} />,
+        path: '/mytasks/alltasks',
+        allowedRoles: ['Developer','Designer']
+      },
+
     ];
 
   const filteredBaseItems = baseItems.filter(item => {

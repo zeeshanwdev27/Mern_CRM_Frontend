@@ -74,7 +74,8 @@ function getFallbackRouteForUser() {
     'Sales': '/contacts',
     'Project Manager': '/projects',
     'Administrator': '/dashboard',
-    'Manager': '/team/all-members'
+    'Manager': '/team/all-members',
+    'Developer': '/myprojects/allprojects'
   };
 
   return roleFallbacks[role] || '/signin';
