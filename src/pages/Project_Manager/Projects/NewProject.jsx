@@ -23,7 +23,6 @@ const NewProject = () => {
   const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [clientProjects, setClientProjects] = useState([]);
-  const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,9 +32,8 @@ const NewProject = () => {
   const [formData, setFormData] = useState({
     priority: "medium",
     client: "",
-    clientProjectId: "",
+    clientProjects: [],
     status: "active",
-    team: [],
     startDate: new Date(),
     deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
@@ -48,22 +46,13 @@ const NewProject = () => {
         if (!token) {
           throw new Error("No authentication token found");
         }
-        const [clientsRes, teamRes] = await Promise.all([
+        const [clientsRes] = await Promise.all([
           axios.get(`${API_BASE_URL}/api/clients/getclients`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          axios.get(`${API_BASE_URL}/api/users/allusers`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
 
         setClients(clientsRes.data.data.getClients);
-        // Filter out users with the "System Admin" role
-        setTeamMembers(
-          teamRes.data.data.filter(
-            (member) => member.role.name !== "Administrator"
-          )
-        );
         setLoading(false);
       } catch (err) {
         console.error("Fetch error:", err);
@@ -81,6 +70,7 @@ const NewProject = () => {
     const fetchClientProjects = async () => {
       if (!formData.client) {
         setClientProjects([]);
+        setFormData(prev => ({ ...prev, clientProjects: [] }));
         return;
       }
 
@@ -90,10 +80,12 @@ const NewProject = () => {
           setClientProjects(client.projects);
         } else {
           setClientProjects([]);
+          setFormData(prev => ({ ...prev, clientProjects: [] }));
         }
       } catch (err) {
         console.error("Error fetching client projects:", err);
         setClientProjects([]);
+        setFormData(prev => ({ ...prev, clientProjects: [] }));
       }
     };
 
@@ -126,17 +118,17 @@ const NewProject = () => {
     }));
   };
 
-  const handleTeamChange = (memberId) => {
-    setFormData((prev) => {
-      if (prev.team.includes(memberId)) {
+  const handleProjectSelect = (projectId) => {
+    setFormData(prev => {
+      if (prev.clientProjects.includes(projectId)) {
         return {
           ...prev,
-          team: prev.team.filter((id) => id !== memberId),
+          clientProjects: prev.clientProjects.filter(id => id !== projectId),
         };
       } else {
         return {
           ...prev,
-          team: [...prev.team, memberId],
+          clientProjects: [...prev.clientProjects, projectId],
         };
       }
     });
@@ -153,7 +145,7 @@ const NewProject = () => {
         ...formData,
         startDate: formData.startDate.toISOString(),
         deadline: formData.deadline.toISOString(),
-        team: formData.team,
+        clientProjects: formData.clientProjects,
       };
 
       const response = await axios.post(
@@ -184,10 +176,10 @@ const NewProject = () => {
     }
   };
 
-  const filteredTeamMembers = teamMembers
-    .filter((member) => !formData.team.includes(member._id))
-    .filter((member) =>
-      member.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProjects = clientProjects
+    .filter(project => !formData.clientProjects.includes(project._id))
+    .filter(project =>
+      project.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
   if (loading && clients.length === 0) {
@@ -269,7 +261,7 @@ const NewProject = () => {
           </div>
         )}
 
-        <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Client Selection */}
             <div className="space-y-2">
@@ -291,38 +283,6 @@ const NewProject = () => {
                   {clients.map((client) => (
                     <option key={client._id} value={client._id}>
                       {client.name}
-                    </option>
-                  ))}
-                </select>
-                <FiChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* Client Project Selection */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Client Project <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FiUser className="text-gray-500" />
-                </div>
-                <select
-                  name="clientProjectId"
-                  value={formData.clientProjectId}
-                  onChange={handleChange}
-                  className="block w-full pl-10 pr-10 py-3 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  required
-                  disabled={!formData.client || clientProjects.length === 0}
-                >
-                  <option value="">
-                    {clientProjects.length
-                      ? "Select a project"
-                      : "No projects available"}
-                  </option>
-                  {clientProjects.map((project) => (
-                    <option key={project._id} value={project._id}>
-                      {project.name}
                     </option>
                   ))}
                 </select>
@@ -422,28 +382,28 @@ const NewProject = () => {
             </div>
           </div>
 
-          {/* Team Members */}
+          {/* Client Projects Selection */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Team Members <span className="text-red-500">*</span>
+              Client Projects <span className="text-red-500">*</span>
             </label>
             <div className="flex flex-wrap gap-3 mb-4">
-              {formData.team.map((memberId) => {
-                const member = teamMembers.find((m) => m._id === memberId);
+              {formData.clientProjects.map((projectId) => {
+                const project = clientProjects.find(p => p._id === projectId);
                 return (
                   <div
-                    key={memberId}
+                    key={projectId}
                     className="group relative inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800 transition-all duration-200 hover:bg-blue-200 transform hover:-translate-y-0.5"
                   >
                     <div className="w-8 h-8 rounded-full bg-blue-300 flex items-center justify-center mr-2">
                       <FiUser className="text-blue-800" />
                     </div>
                     <span className="text-sm font-medium">
-                      {member ? member.name : "Unknown"}
+                      {project ? project.name : "Unknown"}
                     </span>
                     <button
                       type="button"
-                      onClick={() => handleTeamChange(memberId)}
+                      onClick={() => handleProjectSelect(projectId)}
                       className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800"
                     >
                       <FiX className="h-4 w-4" />
@@ -454,8 +414,10 @@ const NewProject = () => {
             </div>
             <div className="relative" ref={dropdownRef}>
               <div
-                className="flex items-center w-full pl-10 pr-10 py-3 bg-white/50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all duration-200 text-sm cursor-pointer"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className={`flex items-center w-full pl-10 pr-10 py-3 bg-white/50 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all duration-200 text-sm ${
+                  !formData.client ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                }`}
+                onClick={() => formData.client && setIsDropdownOpen(!isDropdownOpen)}
               >
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <FiSearch className="text-gray-500" />
@@ -464,32 +426,41 @@ const NewProject = () => {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search team members..."
+                  placeholder={
+                    !formData.client 
+                      ? "Select a client first" 
+                      : clientProjects.length === 0 
+                        ? "No projects available" 
+                        : "Search projects..."
+                  }
                   className="w-full bg-transparent outline-none text-sm"
-                  onClick={() => setIsDropdownOpen(true)}
+                  onClick={() => formData.client && setIsDropdownOpen(true)}
+                  disabled={!formData.client}
                 />
                 <FiChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" />
               </div>
-              {isDropdownOpen && (
+              {isDropdownOpen && formData.client && (
                 <div className="absolute z-10 w-full mt-1 bg-white/90 backdrop-blur-md border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
-                  {filteredTeamMembers.length > 0 ? (
-                    filteredTeamMembers.map((member) => (
+                  {filteredProjects.length > 0 ? (
+                    filteredProjects.map((project) => (
                       <div
-                        key={member._id}
+                        key={project._id}
                         className="flex items-center px-4 py-2 hover:bg-blue-50 cursor-pointer transition-all duration-200"
-                        onClick={() => handleTeamChange(member._id)}
+                        onClick={() => handleProjectSelect(project._id)}
                       >
                         <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center mr-2">
                           <FiUser className="text-blue-700 text-sm" />
                         </div>
                         <span className="text-sm font-medium">
-                          {member.name}
+                          {project.name}
                         </span>
                       </div>
                     ))
                   ) : (
                     <div className="px-4 py-2 text-sm text-gray-500">
-                      No matching team members found
+                      {clientProjects.length === 0 
+                        ? "No projects available for this client" 
+                        : "No matching projects found"}
                     </div>
                   )}
                 </div>
@@ -505,9 +476,8 @@ const NewProject = () => {
               Cancel
             </Link>
             <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading}
+              type="submit"
+              disabled={loading || formData.clientProjects.length === 0}
               className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -520,7 +490,7 @@ const NewProject = () => {
               )}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

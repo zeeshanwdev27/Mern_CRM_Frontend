@@ -7,13 +7,11 @@ import {
   FiClock,
   FiCheckCircle,
   FiPause,
-  FiUsers,
-  FiDollarSign,
   FiCalendar,
   FiEdit2,
   FiTrash2,
-  FiMoreVertical,
-  FiAlertCircle
+  FiAlertCircle,
+  FiBriefcase
 } from 'react-icons/fi';
 import { Bar } from 'react-chartjs-2';
 import axios from 'axios';
@@ -40,7 +38,6 @@ ChartJS.register(
 
 const API_BASE_URL = "http://localhost:3000";
 
-
 const AllProjects = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,57 +45,57 @@ const AllProjects = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('token');
 
   // Fetch projects from backend
-useEffect(() => {
-  const fetchProjects = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/projects/getprojects`,{
-        headers:{
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      console.log(response.data);
-      
-      // Transform the data to match frontend structure
-      const transformedProjects = response.data.map(project => {
-        // Find the matching project in client's projects array
-        const matchedProject = project.client?.projects?.find(
-          p => p._id === project.clientProjectId
-        );
-        
-        return {
-          id: project._id,
-          name: matchedProject?.name || 'Unnamed Project',
-          client: project.client?.name || 'Unknown Client',
-          status: project.status === 'hold' ? 'on hold' : project.status,
-          startDate: new Date(project.startDate).toISOString().split('T')[0],
-          deadline: new Date(project.deadline).toISOString().split('T')[0],
-          budget: `$${matchedProject?.value || 0}`, // Use the actual project value instead of random
-          team: project.team?.map(member => member?.name || 'Unknown Member') || [],
-          progress: project.progress,
-          priority: project.priority
-        };
-      });
-      
-      setProjects(transformedProjects);
-      setLoading(false);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/projects/getprojects`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
-  fetchProjects();
-}, []);
+        // Transform the data to match frontend structure
+        const transformedProjects = response.data.map(project => {
+          // Get all client project names
+          const clientProjectsList = project.clientProjects.map(cp => ({
+            id: cp._id,
+            name: cp.name
+          }));
 
+          return {
+            id: project._id,
+            client: {
+              id: project.client?._id,
+              name: project.client?.name || 'Unknown Client'
+            },
+            clientProjects: clientProjectsList,
+            status: project.status === 'hold' ? 'on hold' : project.status,
+            startDate: new Date(project.startDate).toISOString().split('T')[0],
+            deadline: new Date(project.deadline).toISOString().split('T')[0],
+            progress: project.progress,
+            priority: project.priority,
+            createdAt: project.createdAt
+          };
+        });
+
+        setProjects(transformedProjects);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   const handleDeleteProject = async (id) => {
     try {
-      console.log(id);
-      await axios.delete(`${API_BASE_URL}/api/projects/${id}`,{
-        headers:{
+      await axios.delete(`${API_BASE_URL}/api/projects/${id}`, {
+        headers: {
           'Authorization': `Bearer ${token}`
         }
       });
@@ -110,7 +107,7 @@ useEffect(() => {
 
   // Chart data
   const projectStatusData = {
-    labels: projects.map(project => project.name),
+    labels: projects.map(project => project.client.name),
     datasets: [
       {
         label: 'Progress %',
@@ -126,8 +123,8 @@ useEffect(() => {
   };
 
   const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         project.client.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = project.client.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         project.clientProjects.some(cp => cp.name.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || project.priority === priorityFilter;
     return matchesSearch && matchesStatus && matchesPriority;
@@ -150,7 +147,6 @@ useEffect(() => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
 
   if (loading) return <div className="p-6">Loading...</div>;
   if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
@@ -210,7 +206,7 @@ useEffect(() => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
           <p className="text-sm font-medium text-gray-500">Total Projects</p>
           <p className="text-2xl font-bold mt-1 text-gray-800">{projects.length}</p>
@@ -225,12 +221,6 @@ useEffect(() => {
           <p className="text-sm font-medium text-gray-500">Completed</p>
           <p className="text-2xl font-bold mt-1 text-green-600">
             {projects.filter(p => p.status === 'completed').length}
-          </p>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-          <p className="text-sm font-medium text-gray-500">Total Budget</p>
-          <p className="text-2xl font-bold mt-1 text-purple-600">
-            ${projects.reduce((sum, project) => sum + parseInt(project.budget.replace(/[^0-9]/g, '')), 0).toLocaleString()}
           </p>
         </div>
       </div>
@@ -271,16 +261,13 @@ useEffect(() => {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Project
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Client
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  Projects
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Team
+                  Status
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Timeline
@@ -288,7 +275,7 @@ useEffect(() => {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Progress
                 </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -297,35 +284,27 @@ useEffect(() => {
               {filteredProjects.map((project) => (
                 <tr key={project.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{project.name}</div>
-                    <div className="text-sm text-gray-500 flex items-center">
-                      <FiDollarSign className="mr-1" /> {project.budget}
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{project.client.name}</div>
                     <span className={`mt-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityBadge(project.priority)}`}>
                       {project.priority} priority
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.client}
+                  <td className="px-6 py-4">
+                    <div className="flex items-center">
+                      <FiBriefcase className="text-gray-500 mr-2" />
+                      <div className="text-sm text-gray-700">
+                        {project.clientProjects.length} projects
+                        <div className="text-xs text-gray-500 mt-1">
+                          {project.clientProjects.slice(0, 2).map(p => p.name).join('')}
+                          {/* {project.clientProjects.length > 2 && ` +${project.clientProjects.length - 2}`} */}
+                        </div>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       {getStatusIcon(project.status)}
                       <span className="ml-2 capitalize">{project.status}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex -space-x-2">
-                      {project.team.slice(0, 3).map((member, i) => (
-                        <div key={i} className="h-8 w-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-blue-800 text-xs font-medium">
-                          {member.split(' ').map(n => n[0]).join('')}
-                        </div>
-                      ))}
-                      {project.team.length > 3 && (
-                        <div className="h-8 w-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-gray-800 text-xs font-medium">
-                          +{project.team.length - 3}
-                        </div>
-                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -348,13 +327,22 @@ useEffect(() => {
                         style={{ width: `${project.progress}%` }}
                       ></div>
                     </div>
-                    <div className="text-right text-xs text-gray-500 mt-1">
+                    <div className="text-start text-xs text-gray-500 mt-1">
                       {project.progress}% complete
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-center space-x-2">
-                      <Link to={`/projects/editproject/${project.id}`} className="text-blue-600 hover:text-blue-900 cursor-pointer">
+                      <Link 
+                        to={{
+                          pathname: `/projects/editproject/${project.id}`,
+                          state: { 
+                            clientId: project.client.id,
+                            selectedProjects: project.clientProjects.map(p => p.id) 
+                          }
+                        }} 
+                        className="text-blue-600 hover:text-blue-900 cursor-pointer"
+                      >
                         <FiEdit2 />
                       </Link>
                       <button 
@@ -363,9 +351,6 @@ useEffect(() => {
                       >
                         <FiTrash2 />
                       </button>
-                      {/* <button className="text-gray-400 hover:text-gray-600">
-                        <FiMoreVertical />
-                      </button> */}
                     </div>
                   </td>
                 </tr>
