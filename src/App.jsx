@@ -24,14 +24,19 @@ import EditRole from './pages/Admin/Team/EditRole.jsx';
 import AddDepartment from './pages/Admin/Team/AddDepartment.jsx';
 
 // Project Manager
-import AllProjects from './pages/Project_Manager/Projects/AllProject.jsx';
-import NewProject from './pages/Project_Manager/Projects/NewProject.jsx';
-import EditProject from './pages/Project_Manager/Projects/EditProject.jsx';
 import Tasks from './pages/Project_Manager/Tasks/Tasks.jsx';
 import AddTask from './pages/Project_Manager/Tasks/AddTask.jsx';
+
 import Invoices from "./pages/Project_Manager/Invoices/Invoices.jsx"
 import AddInvoice from './pages/Project_Manager/Invoices/AddInvoice.jsx';
 import PrintInvoice from './pages/Project_Manager/Invoices/PrintInvoice.jsx';
+
+import AllProjects from './pages/Project_Manager/Projects/AllProject.jsx';
+import EditProject from './pages/Project_Manager/Projects/EditProject.jsx';
+import NewProject from './pages/Project_Manager/Projects/NewProject.jsx';
+import ProjectDetails from './pages/Project_Manager/Projects/ProjectDetails.jsx'
+import NewTask from './pages/Project_Manager/Projects/NewTask.jsx'
+
 
 // Sales
 import Contacts from "./pages/Sales/Contacts/Contacts.jsx"
@@ -83,9 +88,13 @@ function App() {
         <Route path="/invoices/add" element={<ProtectedLayout allowedRoles={['Project Manager']}><AddInvoice /></ProtectedLayout>} />
         <Route path="/invoices/:id/print" element={<ProtectedLayout allowedRoles={['Project Manager']}><PrintInvoice /></ProtectedLayout>} />
         
+
         <Route path="/projects" element={<ProtectedLayout allowedRoles={['Project Manager']}><AllProjects /></ProtectedLayout>} />
         <Route path="/projects/newproject" element={<ProtectedLayout allowedRoles={['Project Manager']}><NewProject /></ProtectedLayout>} />
         <Route path="/projects/editproject/:id" element={<ProtectedLayout allowedRoles={['Project Manager']}><EditProject /></ProtectedLayout>} />
+        <Route path="/projects/:projectId" element={<ProtectedLayout allowedRoles={['Project Manager']}><ProjectDetails /></ProtectedLayout>} />
+
+        <Route path="/tasks/newTask/:projectId" element={<ProtectedLayout allowedRoles={['Project Manager']}><NewTask /></ProtectedLayout>} />
 
 
         {/* Manager Routes */}

@@ -30,6 +30,8 @@ const NewProject = () => {
   const dropdownRef = useRef(null);
 
   const [formData, setFormData] = useState({
+    name: "",
+    description: "",
     priority: "medium",
     client: "",
     clientProjects: [],
@@ -64,7 +66,7 @@ const NewProject = () => {
     };
 
     fetchData();
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     const fetchClientProjects = async () => {
@@ -91,6 +93,21 @@ const NewProject = () => {
 
     fetchClientProjects();
   }, [formData.client, clients]);
+
+  // Auto-fill project name when client projects are selected
+  useEffect(() => {
+    if (formData.clientProjects.length > 0 && !formData.name) {
+      const firstProject = clientProjects.find(
+        p => p._id === formData.clientProjects[0]
+      );
+      if (firstProject) {
+        setFormData(prev => ({
+          ...prev,
+          name: firstProject.name
+        }));
+      }
+    }
+  }, [formData.clientProjects, clientProjects]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -138,14 +155,27 @@ const NewProject = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.name) {
+      setError("Project name is required");
+      return;
+    }
+
+    if (formData.clientProjects.length === 0) {
+      setError("At least one client project must be selected");
+      return;
+    }
+
     setLoading(true);
+    setError(null);
 
     try {
       const formattedData = {
         ...formData,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
         startDate: formData.startDate.toISOString(),
         deadline: formData.deadline.toISOString(),
-        clientProjects: formData.clientProjects,
       };
 
       const response = await axios.post(
@@ -262,6 +292,34 @@ const NewProject = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Project Name */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Project Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="block w-full px-4 py-3 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm"
+              required
+            />
+          </div>
+
+          {/* Project Description */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows={3}
+              className="block w-full px-4 py-3 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm"
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Client Selection */}
             <div className="space-y-2">
@@ -302,20 +360,14 @@ const NewProject = () => {
                   onChange={handleChange}
                   className="block w-full pl-10 pr-10 py-3 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm"
                 >
-                  <option value="active">active</option>
-                  <option value="on hold">hold</option>
-                  <option value="completed">completed</option>
+                  <option value="active">Active</option>
+                  <option value="hold">On Hold</option>
+                  <option value="completed">Completed</option>
                 </select>
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  {formData.status === "active" && (
-                    <FiClock className="text-gray-500" />
-                  )}
-                  {formData.status === "on hold" && (
-                    <FiPause className="text-gray-500" />
-                  )}
-                  {formData.status === "completed" && (
-                    <FiCheckCircle className="text-gray-500" />
-                  )}
+                  {formData.status === "active" && <FiClock className="text-gray-500" />}
+                  {formData.status === "hold" && <FiPause className="text-gray-500" />}
+                  {formData.status === "completed" && <FiCheckCircle className="text-gray-500" />}
                 </div>
                 <FiChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" />
               </div>
@@ -336,8 +388,8 @@ const NewProject = () => {
                   onChange={handleChange}
                   className="block w-full pl-10 pr-10 py-3 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm"
                 >
-                  <option value="high">high</option>
-                  <option value="medium">medium</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
                   <option value="low">Low</option>
                 </select>
                 <FiChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" />

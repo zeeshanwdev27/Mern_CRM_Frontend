@@ -11,7 +11,8 @@ import {
   FiEdit2,
   FiTrash2,
   FiAlertCircle,
-  FiBriefcase
+  FiBriefcase,
+  FiXCircle
 } from 'react-icons/fi';
 import { Bar } from 'react-chartjs-2';
 import axios from 'axios';
@@ -24,7 +25,8 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 // Register ChartJS components
 ChartJS.register(
@@ -45,7 +47,10 @@ const AllProjects = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
   const token = localStorage.getItem('token');
+  const navigate = useNavigate();
 
   // Fetch projects from backend
   useEffect(() => {
@@ -92,16 +97,41 @@ const AllProjects = () => {
     fetchProjects();
   }, []);
 
-  const handleDeleteProject = async (id) => {
+  const handleDeleteClick = (project) => {
+    setSelectedProject(project);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
     try {
-      await axios.delete(`${API_BASE_URL}/api/projects/${id}`, {
+      // Show loading toast
+      const toastId = toast.loading('Deleting project...');
+      
+      await axios.delete(`${API_BASE_URL}/api/projects/${selectedProject.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      setProjects(projects.filter(project => project.id !== id));
+      
+      // Update local state
+      setProjects(projects.filter(project => project.id !== selectedProject.id));
+      
+      // Close modal
+      setShowDeleteModal(false);
+      
+      // Update toast to success
+      toast.update(toastId, {
+        render: 'Project deleted successfully!',
+        type: 'success',
+        isLoading: false,
+        autoClose: 3000,
+        closeButton: true
+      });
+      
     } catch (err) {
-      setError(err.message);
+      // Show error toast
+      toast.error(err.response?.data?.message || 'Failed to delete project');
+      console.error('Delete error:', err);
     }
   };
 
@@ -282,83 +312,138 @@ const AllProjects = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProjects.map((project) => (
-                <tr key={project.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{project.client.name}</div>
-                    <span className={`mt-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityBadge(project.priority)}`}>
-                      {project.priority} priority
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <FiBriefcase className="text-gray-500 mr-2" />
-                      <div className="text-sm text-gray-700">
-                        {project.clientProjects.length} projects
-                        <div className="text-xs text-gray-500 mt-1">
-                          {project.clientProjects.slice(0, 2).map(p => p.name).join('')}
-                          {/* {project.clientProjects.length > 2 && ` +${project.clientProjects.length - 2}`} */}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {getStatusIcon(project.status)}
-                      <span className="ml-2 capitalize">{project.status}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {new Date(project.startDate).toLocaleDateString()}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      <FiCalendar className="inline mr-1" />
-                      {new Date(project.deadline).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div 
-                        className={`h-2.5 rounded-full ${
-                          project.status === 'completed' ? 'bg-green-500' :
-                          project.status === 'on hold' ? 'bg-yellow-500' :
-                          'bg-blue-500'
-                        }`} 
-                        style={{ width: `${project.progress}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-start text-xs text-gray-500 mt-1">
-                      {project.progress}% complete
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-center space-x-2">
-                      <Link 
-                        to={{
-                          pathname: `/projects/editproject/${project.id}`,
-                          state: { 
-                            clientId: project.client.id,
-                            selectedProjects: project.clientProjects.map(p => p.id) 
-                          }
-                        }} 
-                        className="text-blue-600 hover:text-blue-900 cursor-pointer"
-                      >
-                        <FiEdit2 />
-                      </Link>
-                      <button 
-                        className="text-red-600 hover:text-red-900 cursor-pointer"
-                        onClick={() => handleDeleteProject(project.id)}
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+<tr key={project.id} className="hover:bg-gray-50">
+  {['client', 'projects', 'status', 'timeline', 'progress'].map((cellType) => (
+    <td 
+      key={cellType}
+      className={`px-6 py-4 ${cellType !== 'actions' ? 'cursor-pointer' : ''}`}
+      onClick={() => cellType !== 'actions' && navigate(`/projects/${project.id}`)}
+    >
+      {cellType === 'client' && (
+        <>
+          <div className="text-sm font-medium text-gray-900">{project.client.name}</div>
+          <span className={`mt-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityBadge(project.priority)}`}>
+            {project.priority} priority
+          </span>
+        </>
+      )}
+      
+      {cellType === 'projects' && (
+        <div className="flex items-center">
+          <FiBriefcase className="text-gray-500 mr-2" />
+          <div className="text-sm text-gray-700">
+            {project.clientProjects.length} projects
+            <div className="text-xs text-gray-500 mt-1">
+              {project.clientProjects.slice(0, 2).map(p => p.name).join('')}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cellType === 'status' && (
+        <div className="flex items-center">
+          {getStatusIcon(project.status)}
+          <span className="ml-2 capitalize">{project.status}</span>
+        </div>
+      )}
+
+      {cellType === 'timeline' && (
+        <>
+          <div className="text-sm text-gray-900">
+            {new Date(project.startDate).toLocaleDateString()}
+          </div>
+          <div className="text-sm text-gray-500">
+            <FiCalendar className="inline mr-1" />
+            {new Date(project.deadline).toLocaleDateString()}
+          </div>
+        </>
+      )}
+
+      {cellType === 'progress' && (
+        <>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div 
+              className={`h-2.5 rounded-full ${
+                project.status === 'completed' ? 'bg-green-500' :
+                project.status === 'on hold' ? 'bg-yellow-500' :
+                'bg-blue-500'
+              }`} 
+              style={{ width: `${project.progress}%` }}
+            />
+          </div>
+          <div className="text-start text-xs text-gray-500 mt-1">
+            {project.progress}% complete
+          </div>
+        </>
+      )}
+    </td>
+  ))}
+
+  {/* Actions column - separate since it's different */}
+  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+    <div className="flex justify-center space-x-2">
+      <Link 
+        to={{
+          pathname: `/projects/editproject/${project.id}`,
+          state: { 
+            clientId: project.client.id,
+            selectedProjects: project.clientProjects.map(p => p.id) 
+          }
+        }} 
+        className="text-blue-600 hover:text-blue-900 cursor-pointer"
+      >
+        <FiEdit2 />
+      </Link>
+      <button 
+        className="text-red-600 hover:text-red-900 cursor-pointer"
+        onClick={() => handleDeleteClick(project)}
+      >
+        <FiTrash2 />
+      </button>
+    </div>
+  </td>
+</tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full animate-scale-in">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="p-3 rounded-full bg-rose-100 mt-0.5">
+                <FiXCircle size={24} className="text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Delete Project</h3>
+                <p className="text-gray-600 mt-2">
+                  Are you sure you want to delete the project for client "{selectedProject?.client.name}"? This action cannot be undone.
+                </p>
+                <div className="mt-3 p-3 bg-amber-50 text-amber-800 rounded-lg text-sm">
+                  This will permanently remove the project and all its associated data from the system.
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-5 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl transition-all duration-200 shadow-sm"
+              >
+                Delete Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

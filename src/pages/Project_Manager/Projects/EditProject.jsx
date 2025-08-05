@@ -14,7 +14,7 @@ import {
   FiPercent,
 } from "react-icons/fi";
 import axios from "axios";
-import { useNavigate, Link, useParams } from "react-router-dom";
+import { useNavigate, Link, useParams, useLocation } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -23,6 +23,7 @@ const API_BASE_URL = "http://localhost:3000";
 const EditProject = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [clients, setClients] = useState([]);
   const [clientProjects, setClientProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,7 @@ const EditProject = () => {
   const dropdownRef = useRef(null);
 
   const [formData, setFormData] = useState({
+    name: "",
     priority: "medium",
     client: "",
     clientProjects: [],
@@ -49,6 +51,9 @@ const EditProject = () => {
         if (!token) {
           throw new Error("No authentication token found");
         }
+
+        // Get initial data from location state if available
+        const initialProjectData = location.state?.projectData || null;
         
         const [clientsRes, projectRes] = await Promise.all([
           axios.get(`${API_BASE_URL}/api/clients/getclients`, {
@@ -60,8 +65,8 @@ const EditProject = () => {
         ]);
 
         const clientsData = clientsRes.data?.data?.getClients || [];
-        const projectData = projectRes.data?.data || projectRes.data;
-        
+        const projectData = initialProjectData || projectRes.data?.data || projectRes.data;
+
         if (!projectData) {
           throw new Error("Project data not found in response");
         }
@@ -69,23 +74,27 @@ const EditProject = () => {
         setClients(clientsData);
         
         // Set form data from existing project
-        setFormData({
-          priority: projectData.priority,
-          client: projectData.client?._id || projectData.client,
-          clientProjects: projectData.clientProjects?.map(p => p._id || p) || [],
-          status: projectData.status === "hold" ? "on hold" : projectData.status,
-          startDate: new Date(projectData.startDate),
-          deadline: new Date(projectData.deadline),
+        const initialFormData = {
+          name: projectData.name || "",
+          priority: projectData.priority || "medium",
+          client: projectData.client?.id || projectData.client?._id || projectData.client || "",
+          clientProjects: projectData.clientProjects?.map(p => String(p.id || p._id || p)) || [],
+          status: projectData.status === "hold" ? "on hold" : projectData.status || "active",
+          startDate: new Date(projectData.startDate || Date.now()),
+          deadline: new Date(projectData.deadline || Date.now() + 7 * 24 * 60 * 60 * 1000),
           progress: projectData.progress || 0,
-        });
+        };
+
+        setFormData(initialFormData);
 
         // Find the client and their projects
-        const client = clientsData.find(c => c._id === (projectData.client?._id || projectData.client));
+        const client = clientsData.find(c => c._id === (projectData.client?.id || projectData.client?._id || projectData.client));
         if (client?.projects) {
-          // Normalize project IDs to strings
+          // Normalize project IDs to strings and include names
           const normalizedProjects = client.projects.map(p => ({
             ...p,
-            _id: String(p._id || p.id)
+            _id: String(p._id),
+            name: p.name || "Unnamed Project"
           }));
           setClientProjects(normalizedProjects);
         }
@@ -101,7 +110,7 @@ const EditProject = () => {
     };
 
     fetchData();
-  }, [id, token]);
+  }, [id, token, location.state]);
 
   useEffect(() => {
     const fetchClientProjects = async () => {
@@ -113,10 +122,10 @@ const EditProject = () => {
       try {
         const client = clients.find((c) => c._id === formData.client);
         if (client?.projects) {
-          // Normalize project IDs to strings
           const normalizedProjects = client.projects.map(p => ({
             ...p,
-            _id: String(p._id || p.id)
+            _id: String(p._id),
+            name: p.name || "Unnamed Project"
           }));
           setClientProjects(normalizedProjects);
         } else {
@@ -177,14 +186,19 @@ const EditProject = () => {
   };
 
   const getProjectName = (projectId) => {
+    if (!projectId) return "Unknown Project";
+    
     const stringId = String(projectId);
+    
+    // First check in current client projects
     const project = clientProjects.find(p => String(p._id) === stringId);
     if (project) return project.name;
     
+    // Then check in all clients' projects
     for (const client of clients) {
       if (client.projects) {
-        const foundProject = client.projects.find(p => String(p._id || p.id) === stringId);
-        if (foundProject) return foundProject.name;
+        const foundProject = client.projects.find(p => String(p._id) === stringId);
+        if (foundProject) return foundProject.name || "Unnamed Project";
       }
     }
     
@@ -197,6 +211,26 @@ const EditProject = () => {
     setError(null);
 
     try {
+      if (!formData.name || formData.name.trim() === "") {
+        setError("Project name is required");
+        return;
+      }
+
+      if (formData.name.length > 100) {
+        setError("Project name cannot exceed 100 characters");
+        return;
+      }
+
+      if (!formData.client) {
+        setError("Client is required");
+        return;
+      }
+
+      if (!formData.clientProjects || formData.clientProjects.length === 0) {
+        setError("At least one client project must be selected");
+        return;
+      }
+
       // Ensure deadline is at least 1ms after start date
       const adjustedDeadline = new Date(formData.deadline);
       if (adjustedDeadline <= formData.startDate) {
@@ -213,11 +247,14 @@ const EditProject = () => {
       }
 
       const formattedData = {
-        ...formData,
-        startDate: formData.startDate.toISOString(),
-        deadline: adjustedDeadline.toISOString(),
+        name: formData.name,
+        priority: formData.priority,
+        client: formData.client,
         clientProjects: validProjects,
         status: formData.status === "on hold" ? "hold" : formData.status,
+        startDate: formData.startDate.toISOString(),
+        deadline: adjustedDeadline.toISOString(),
+        progress: formData.progress,
       };
 
       const response = await axios.put(
@@ -231,7 +268,7 @@ const EditProject = () => {
         }
       );
 
-      if (response.data && response.data._id) {
+      if (response.data) {
         navigate("/projects");
       } else {
         throw new Error("Failed to update project");
@@ -333,6 +370,23 @@ const EditProject = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Project Name */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Project Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className="block w-full px-4 py-3 bg-white/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm"
+                required
+                maxLength={100}
+                placeholder="Enter project name"
+              />
+            </div>
+
             {/* Client Selection */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -479,26 +533,29 @@ const EditProject = () => {
               Client Projects <span className="text-red-500">*</span>
             </label>
             <div className="flex flex-wrap gap-3 mb-4">
-              {formData.clientProjects.map((projectId) => (
-                <div
-                  key={projectId}
-                  className="group relative inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800 transition-all duration-200 hover:bg-blue-200 transform hover:-translate-y-0.5"
-                >
-                  <div className="w-8 h-8 rounded-full bg-blue-300 flex items-center justify-center mr-2">
-                    <FiUser className="text-blue-800" />
-                  </div>
-                  <span className="text-sm font-medium">
-                    {getProjectName(projectId)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleProjectSelect(projectId)}
-                    className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800"
+              {formData.clientProjects.map((projectId) => {
+                const projectName = getProjectName(projectId);
+                return (
+                  <div
+                    key={projectId}
+                    className="group relative inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-800 transition-all duration-200 hover:bg-blue-200 transform hover:-translate-y-0.5"
                   >
-                    <FiX className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+                    <div className="w-8 h-8 rounded-full bg-blue-300 flex items-center justify-center mr-2">
+                      <FiUser className="text-blue-800" />
+                    </div>
+                    <span className="text-sm font-medium">
+                      {projectName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleProjectSelect(projectId)}
+                      className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-blue-600 hover:text-blue-800"
+                    >
+                      <FiX className="h-4 w-4" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
             <div className="relative" ref={dropdownRef}>
               <div
